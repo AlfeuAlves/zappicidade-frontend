@@ -14,7 +14,8 @@ import { api } from '@/lib/api'
 // ── Tipos ──────────────────────────────────────────────────────
 interface Comercio {
   id: string; nome: string; slug: string
-  categoria_id: string; categoria_nome: string; categoria_icone: string
+  categoria_id?: string; categoria_nome: string; categoria_icone: string
+  categoria_slug?: string
   bairro: string; endereco: string
   avaliacao: number; total_avaliacoes: number
   telefone: string; logo_url: string
@@ -112,7 +113,7 @@ function Passo1({ onSelecionar }: { onSelecionar: (c: Comercio) => void }) {
   const [resultados, setResultados] = useState<Comercio[]>([])
   const [carregando, setCarregando] = useState(false)
   const [buscado, setBuscado] = useState(false)
-  const timerRef = useRef<NodeJS.Timeout>()
+  const timerRef = useRef<NodeJS.Timeout | undefined>(undefined)
 
   useEffect(() => {
     if (busca.length < 2) { setResultados([]); setBuscado(false); return }
