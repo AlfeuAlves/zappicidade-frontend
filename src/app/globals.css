@@ -1,26 +1,104 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Paleta ZappiCidade */
+  --verde:        #16A34A;
+  --verde-escuro: #15803D;
+  --verde-claro:  #DCFCE7;
+  --dark:         #1F2937;
+  --dark-mid:     #374151;
+  --amarelo:      #FACC15;
+  --amarelo-esc:  #EAB308;
+  --azul:         #0EA5E9;
+  --azul-esc:     #0284C7;
+  --creme:        #F9FAFB;
+  --cinza:        #F3F4F6;
+  --texto:        #1F2937;
+  --texto-suave:  #6B7280;
+  --borda:        #E5E7EB;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Inter', sans-serif;
+  background: var(--creme);
+  color: var(--texto);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
+
+.container { max-width: 1200px; margin: 0 auto; padding: 0 1.5rem; }
+@media (max-width: 768px) { .container { padding: 0 1rem; } }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; } to { opacity: 1; }
+}
+@keyframes pulse-verde {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(22,163,74,0.4); }
+  50%       { box-shadow: 0 0 0 8px rgba(22,163,74,0); }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-6px); }
+}
+
+.animate-fade-up { animation: fadeUp 0.5s ease forwards; }
+.animate-fade-in { animation: fadeIn 0.4s ease forwards; }
+.pulse-verde      { animation: pulse-verde 2s infinite; }
+.float            { animation: float 3s ease-in-out infinite; }
+
+.card-hover { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.card-hover:hover { transform: translateY(-4px); box-shadow: 0 16px 40px rgba(0,0,0,0.12); }
+
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px; border-radius: 99px;
+  font-size: 12px; font-weight: 600; font-family: 'Poppins', sans-serif;
+}
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 12px 24px; border-radius: 12px; font-weight: 600; font-size: 15px;
+  font-family: 'Poppins', sans-serif; cursor: pointer;
+  transition: all 0.18s ease; border: none; text-decoration: none;
+}
+.btn-verde        { background: var(--verde); color: white; }
+.btn-verde:hover  { background: var(--verde-escuro); transform: translateY(-1px); box-shadow: 0 8px 20px rgba(22,163,74,0.35); }
+.btn-amarelo      { background: var(--amarelo); color: var(--dark); }
+.btn-amarelo:hover{ background: var(--amarelo-esc); transform: translateY(-1px); box-shadow: 0 8px 20px rgba(250,204,21,0.4); }
+.btn-dark         { background: var(--dark); color: white; }
+.btn-dark:hover   { background: var(--dark-mid); transform: translateY(-1px); }
+.btn-outline      { background: transparent; border: 2px solid var(--borda); color: var(--texto); }
+.btn-outline:hover{ border-color: var(--verde); color: var(--verde); }
+.btn-whatsapp     { background: #25D366; color: white; }
+.btn-whatsapp:hover{ background: #1ebe5d; transform: translateY(-1px); }
+
+.tag-aberto  { background: #DCFCE7; color: #15803D; }
+.tag-fechado { background: #FEE2E2; color: #DC2626; }
+
+/* Glassmorphism */
+.glass {
+  background: rgba(255,255,255,0.1);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.2);
+}
+
+/* Gradiente de marca */
+.gradient-brand {
+  background: linear-gradient(135deg, var(--verde) 0%, var(--azul) 100%);
 }
