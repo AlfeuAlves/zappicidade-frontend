@@ -25,7 +25,7 @@ export default function Header() {
       <div className="container" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', height: 84 }}>
 
         {/* Logo ZappiCidade */}
-        <Link href={process.env.NEXT_PUBLIC_SITE_URL || 'https://site-deploy-azure.vercel.app'} style={{ display: 'flex', alignItems: 'center', flexShrink: 0, textDecoration: 'none' }}>
+        <Link href={process.env.NEXT_PUBLIC_SITE_URL || 'https://zappicidade-site.vercel.app'} style={{ display: 'flex', alignItems: 'center', flexShrink: 0, textDecoration: 'none' }}>
           <Image
             src="/logo_zappicidade.png"
             alt="ZappiCidade"
