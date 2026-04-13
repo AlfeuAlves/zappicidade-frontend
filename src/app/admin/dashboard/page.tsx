@@ -41,18 +41,19 @@ interface Comercio {
   destaque: boolean; bairro: string; criado_em: string
   categorias: { nome: string; icone: string } | null
 }
-type Secao = 'dashboard' | 'pendentes' | 'comerciantes' | 'comercios' | 'monetizacao' | 'ia' | 'relatorios' | 'anuncios' | 'notificacoes' | 'configuracoes'
+type Secao = 'dashboard' | 'pendentes' | 'comerciantes' | 'comercios' | 'monetizacao' | 'ia' | 'relatorios' | 'anuncios' | 'notificacoes' | 'configuracoes' | 'usuarios'
 
 // ── Helpers ──────────────────────────────────────────────────────
 const formatarData = (iso: string) =>
   new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
 
 // ── Sidebar ──────────────────────────────────────────────────────
-const MENU: { key: Secao; icon: React.ElementType; label: string; badge?: string }[] = [
+const MENU: { key: Secao; icon: React.ElementType; label: string; badge?: string; href?: string }[] = [
   { key: 'dashboard',      icon: LayoutDashboard, label: 'Dashboard' },
-  { key: 'pendentes',      icon: Clock,            label: 'Aprovações',   badge: 'pendentes' },
+  { key: 'pendentes',      icon: Clock,            label: 'Aprovações',      badge: 'pendentes' },
   { key: 'comerciantes',   icon: Users,            label: 'Comerciantes' },
   { key: 'comercios',      icon: Store,            label: 'Comércios' },
+  { key: 'usuarios',       icon: MessageCircle,    label: 'Usuários Bot',    href: '/admin/usuarios' },
   { key: 'monetizacao',    icon: DollarSign,       label: 'Monetização' },
   { key: 'anuncios',       icon: Megaphone,        label: 'Anúncios' },
   { key: 'ia',             icon: Brain,            label: 'IA — RAG' },
@@ -100,33 +101,41 @@ function Sidebar({ secao, setSecao, pendentes, collapsed, setCollapsed, onSair }
 
       {/* Menu */}
       <nav style={{ flex: 1, padding: '8px 10px', overflowY: 'auto' }}>
-        {MENU.map(({ key, icon: Icon, label, badge }) => {
+        {MENU.map(({ key, icon: Icon, label, badge, href }) => {
           const ativo = secao === key
           const cnt = badge === 'pendentes' ? pendentes : 0
+          const style: React.CSSProperties = {
+            width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+            padding: collapsed ? '10px 12px' : '10px 14px',
+            borderRadius: 10, border: 'none', cursor: 'pointer',
+            background: ativo ? '#F0FDF4' : 'transparent',
+            color: ativo ? '#16A34A' : '#6B7280',
+            fontFamily: 'Inter, sans-serif', fontWeight: ativo ? 600 : 500,
+            fontSize: 13.5, marginBottom: 2, transition: 'all 0.15s',
+            boxShadow: ativo ? 'inset 3px 0 0 #16A34A' : 'none',
+            position: 'relative', textDecoration: 'none',
+          }
+          const inner = <>
+            <Icon size={18} style={{ flexShrink: 0 }} />
+            {!collapsed && <span style={{ flex: 1, textAlign: 'left', whiteSpace: 'nowrap' }}>{label}</span>}
+            {!collapsed && cnt > 0 && (
+              <span style={{ background: '#F59E0B', color: 'white', fontSize: 10, fontWeight: 700, borderRadius: 999, padding: '2px 7px' }}>{cnt}</span>
+            )}
+            {collapsed && cnt > 0 && (
+              <span style={{ position: 'absolute', top: 6, right: 6, width: 8, height: 8, background: '#F59E0B', borderRadius: '50%' }} />
+            )}
+          </>
+          if (href) return (
+            <a key={key} href={href} style={style}
+              onMouseEnter={e => { e.currentTarget.style.background = '#F9FAFB' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+            >{inner}</a>
+          )
           return (
-            <button key={key} onClick={() => setSecao(key)} style={{
-              width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-              padding: collapsed ? '10px 12px' : '10px 14px',
-              borderRadius: 10, border: 'none', cursor: 'pointer',
-              background: ativo ? '#F0FDF4' : 'transparent',
-              color: ativo ? '#16A34A' : '#6B7280',
-              fontFamily: 'Inter, sans-serif', fontWeight: ativo ? 600 : 500,
-              fontSize: 13.5, marginBottom: 2, transition: 'all 0.15s',
-              boxShadow: ativo ? 'inset 3px 0 0 #16A34A' : 'none',
-              position: 'relative',
-            }}
+            <button key={key} onClick={() => setSecao(key)} style={style}
               onMouseEnter={e => { if (!ativo) e.currentTarget.style.background = '#F9FAFB' }}
               onMouseLeave={e => { if (!ativo) e.currentTarget.style.background = 'transparent' }}
-            >
-              <Icon size={18} style={{ flexShrink: 0 }} />
-              {!collapsed && <span style={{ flex: 1, textAlign: 'left', whiteSpace: 'nowrap' }}>{label}</span>}
-              {!collapsed && cnt > 0 && (
-                <span style={{ background: '#F59E0B', color: 'white', fontSize: 10, fontWeight: 700, borderRadius: 999, padding: '2px 7px' }}>{cnt}</span>
-              )}
-              {collapsed && cnt > 0 && (
-                <span style={{ position: 'absolute', top: 6, right: 6, width: 8, height: 8, background: '#F59E0B', borderRadius: '50%' }} />
-              )}
-            </button>
+            >{inner}</button>
           )
         })}
       </nav>
