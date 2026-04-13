@@ -316,6 +316,15 @@ function SecaoDashboard({ stats, onNavigate }: { stats: Stats | null; onNavigate
             Abrir
           </a>
         </div>
+        <div style={{ background: '#EFF6FF', border: '1.5px solid #BFDBFE', borderRadius: 14, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Users size={18} color="#3B82F6" style={{ flexShrink: 0 }} />
+          <span style={{ color: '#1E40AF', fontWeight: 700, fontFamily: 'Poppins, sans-serif', fontSize: 13, flex: 1 }}>
+            Usuários do bot
+          </span>
+          <a href="/admin/usuarios" style={{ background: '#3B82F6', color: 'white', border: 'none', borderRadius: 999, padding: '6px 14px', fontSize: 12, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap' }}>
+            Abrir
+          </a>
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
