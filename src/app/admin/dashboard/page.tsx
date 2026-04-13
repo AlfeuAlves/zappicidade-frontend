@@ -296,15 +296,26 @@ function SecaoDashboard({ stats, onNavigate }: { stats: Stats | null; onNavigate
         </div>
       )}
 
-      {/* Atalho — preencher bairros */}
-      <div style={{ background: '#EFF6FF', border: '1.5px solid #BFDBFE', borderRadius: 14, padding: '14px 18px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
-        <MapPin size={18} color="#1D4ED8" style={{ flexShrink: 0 }} />
-        <span style={{ color: '#1E40AF', fontWeight: 700, fontFamily: 'Poppins, sans-serif', fontSize: 14, flex: 1 }}>
-          Comércios com bairro em branco — preencha um por um
-        </span>
-        <a href="/admin/bairros" style={{ background: '#1D4ED8', color: 'white', border: 'none', borderRadius: 999, padding: '6px 16px', fontSize: 12, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: 'pointer', textDecoration: 'none' }}>
-          Preencher
-        </a>
+      {/* Atalhos rápidos */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 24 }}>
+        <div style={{ background: '#EFF6FF', border: '1.5px solid #BFDBFE', borderRadius: 14, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <MapPin size={18} color="#1D4ED8" style={{ flexShrink: 0 }} />
+          <span style={{ color: '#1E40AF', fontWeight: 700, fontFamily: 'Poppins, sans-serif', fontSize: 13, flex: 1 }}>
+            Preencher bairros em branco
+          </span>
+          <a href="/admin/bairros" style={{ background: '#1D4ED8', color: 'white', border: 'none', borderRadius: 999, padding: '6px 14px', fontSize: 12, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap' }}>
+            Abrir
+          </a>
+        </div>
+        <div style={{ background: '#F0FDF4', border: '1.5px solid #BBF7D0', borderRadius: 14, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Store size={18} color="#16A34A" style={{ flexShrink: 0 }} />
+          <span style={{ color: '#166534', fontWeight: 700, fontFamily: 'Poppins, sans-serif', fontSize: 13, flex: 1 }}>
+            Editar dados de comércio
+          </span>
+          <a href="/admin/comercios" style={{ background: '#16A34A', color: 'white', border: 'none', borderRadius: 999, padding: '6px 14px', fontSize: 12, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap' }}>
+            Abrir
+          </a>
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
