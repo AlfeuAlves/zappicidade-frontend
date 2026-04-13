@@ -3,13 +3,15 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import {
-  Store, Users, Clock, CheckCircle2, XCircle,
-  TrendingUp, LogOut, Search, RefreshCw,
-  Check, X, ChevronRight, ShieldCheck,
-  MessageCircle, BarChart2, AlertTriangle,
+  LayoutDashboard, Store, Users, DollarSign, Megaphone, Brain,
+  BarChart2, Tag, Bell, Settings, LogOut, Search, RefreshCw,
+  Check, X, ChevronRight, ShieldCheck, MessageCircle, AlertTriangle,
+  Clock, CheckCircle2, TrendingUp, Plus, Pencil, Trash2,
+  Activity, Zap, ChevronDown, MapPin,
 } from 'lucide-react'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://zappicidade-site.vercel.app'
 
 function adminFetch<T>(path: string, options?: RequestInit): Promise<T> {
   const token = typeof window !== 'undefined' ? localStorage.getItem('admin_token') : ''
@@ -23,7 +25,7 @@ function adminFetch<T>(path: string, options?: RequestInit): Promise<T> {
   })
 }
 
-// ── Tipos ──────────────────────────────────────────────────────
+// ── Tipos ────────────────────────────────────────────────────────
 interface Stats {
   total_comercios: number; total_comerciantes: number
   pendentes: number; aprovados: number; rejeitados: number
@@ -39,27 +41,181 @@ interface Comercio {
   destaque: boolean; bairro: string; criado_em: string
   categorias: { nome: string; icone: string } | null
 }
+type Secao = 'dashboard' | 'pendentes' | 'comerciantes' | 'comercios' | 'monetizacao' | 'ia' | 'relatorios' | 'anuncios' | 'notificacoes' | 'configuracoes'
 
-// ── Card de stat ───────────────────────────────────────────────
-function StatCard({ icone, label, valor, cor, bg }: { icone: React.ReactNode; label: string; valor: number | string; cor: string; bg: string }) {
+// ── Helpers ──────────────────────────────────────────────────────
+const formatarData = (iso: string) =>
+  new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
+
+// ── Sidebar ──────────────────────────────────────────────────────
+const MENU: { key: Secao; icon: React.ElementType; label: string; badge?: string }[] = [
+  { key: 'dashboard',      icon: LayoutDashboard, label: 'Dashboard' },
+  { key: 'pendentes',      icon: Clock,            label: 'Aprovações',   badge: 'pendentes' },
+  { key: 'comerciantes',   icon: Users,            label: 'Comerciantes' },
+  { key: 'comercios',      icon: Store,            label: 'Comércios' },
+  { key: 'monetizacao',    icon: DollarSign,       label: 'Monetização' },
+  { key: 'anuncios',       icon: Megaphone,        label: 'Anúncios' },
+  { key: 'ia',             icon: Brain,            label: 'IA — RAG' },
+  { key: 'relatorios',     icon: BarChart2,        label: 'Relatórios' },
+  { key: 'notificacoes',   icon: Bell,             label: 'Notificações' },
+  { key: 'configuracoes',  icon: Settings,         label: 'Configurações' },
+]
+
+function Sidebar({ secao, setSecao, pendentes, collapsed, setCollapsed, onSair }: {
+  secao: Secao; setSecao: (s: Secao) => void
+  pendentes: number; collapsed: boolean; setCollapsed: (v: boolean) => void
+  onSair: () => void
+}) {
   return (
-    <div style={{
-      background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 16,
-      padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 14,
-      boxShadow: '0 2px 8px rgba(31,41,55,0.05)',
+    <aside style={{
+      width: collapsed ? 64 : 240, flexShrink: 0,
+      background: 'white', borderRight: '1.5px solid #E5E7EB',
+      height: '100vh', position: 'sticky', top: 0,
+      display: 'flex', flexDirection: 'column',
+      transition: 'width 0.25s ease', overflow: 'hidden',
     }}>
-      <div style={{ width: 44, height: 44, borderRadius: 12, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-        {icone}
+      {/* Logo */}
+      <div style={{ padding: collapsed ? '18px 16px' : '18px 20px', borderBottom: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', gap: 10, minHeight: 64 }}>
+        {!collapsed && <Image src="/logo_zappicidade.png" alt="ZappiCidade" width={120} height={30} style={{ objectFit: 'contain' }} />}
+        {collapsed && <div style={{ width: 32, height: 32, background: '#DCFCE7', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <Zap size={16} color="#16A34A" />
+        </div>}
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: 6, color: '#9CA3AF', flexShrink: 0 }}
+        >
+          <ChevronDown size={16} style={{ transform: collapsed ? 'rotate(-90deg)' : 'rotate(90deg)', transition: 'transform 0.2s' }} />
+        </button>
       </div>
-      <div>
-        <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.4rem', color: cor, lineHeight: 1 }}>{valor}</div>
-        <div style={{ color: '#6B7280', fontSize: 12, fontFamily: 'Inter, sans-serif', marginTop: 3 }}>{label}</div>
+
+      {/* Badge admin */}
+      {!collapsed && (
+        <div style={{ padding: '8px 20px' }}>
+          <div style={{ background: '#DCFCE7', border: '1px solid rgba(22,163,74,0.2)', borderRadius: 999, padding: '4px 12px', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <ShieldCheck size={12} color="#16A34A" />
+            <span style={{ color: '#16A34A', fontSize: 11, fontWeight: 700, fontFamily: 'Poppins, sans-serif', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Administrador</span>
+          </div>
+        </div>
+      )}
+
+      {/* Menu */}
+      <nav style={{ flex: 1, padding: '8px 10px', overflowY: 'auto' }}>
+        {MENU.map(({ key, icon: Icon, label, badge }) => {
+          const ativo = secao === key
+          const cnt = badge === 'pendentes' ? pendentes : 0
+          return (
+            <button key={key} onClick={() => setSecao(key)} style={{
+              width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+              padding: collapsed ? '10px 12px' : '10px 14px',
+              borderRadius: 10, border: 'none', cursor: 'pointer',
+              background: ativo ? '#F0FDF4' : 'transparent',
+              color: ativo ? '#16A34A' : '#6B7280',
+              fontFamily: 'Inter, sans-serif', fontWeight: ativo ? 600 : 500,
+              fontSize: 13.5, marginBottom: 2, transition: 'all 0.15s',
+              boxShadow: ativo ? 'inset 3px 0 0 #16A34A' : 'none',
+              position: 'relative',
+            }}
+              onMouseEnter={e => { if (!ativo) e.currentTarget.style.background = '#F9FAFB' }}
+              onMouseLeave={e => { if (!ativo) e.currentTarget.style.background = 'transparent' }}
+            >
+              <Icon size={18} style={{ flexShrink: 0 }} />
+              {!collapsed && <span style={{ flex: 1, textAlign: 'left', whiteSpace: 'nowrap' }}>{label}</span>}
+              {!collapsed && cnt > 0 && (
+                <span style={{ background: '#F59E0B', color: 'white', fontSize: 10, fontWeight: 700, borderRadius: 999, padding: '2px 7px' }}>{cnt}</span>
+              )}
+              {collapsed && cnt > 0 && (
+                <span style={{ position: 'absolute', top: 6, right: 6, width: 8, height: 8, background: '#F59E0B', borderRadius: '50%' }} />
+              )}
+            </button>
+          )
+        })}
+      </nav>
+
+      {/* Sair */}
+      <div style={{ padding: '12px 10px', borderTop: '1px solid #F3F4F6' }}>
+        <button onClick={onSair} style={{
+          width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+          padding: collapsed ? '10px 12px' : '10px 14px', borderRadius: 10,
+          border: 'none', cursor: 'pointer', background: 'transparent',
+          color: '#9CA3AF', fontFamily: 'Inter, sans-serif', fontSize: 13.5, transition: 'all 0.15s',
+        }}
+          onMouseEnter={e => { e.currentTarget.style.background = '#FEF2F2'; e.currentTarget.style.color = '#DC2626' }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#9CA3AF' }}
+        >
+          <LogOut size={18} style={{ flexShrink: 0 }} />
+          {!collapsed && <span>Sair</span>}
+        </button>
       </div>
+    </aside>
+  )
+}
+
+// ── StatCard ─────────────────────────────────────────────────────
+function StatCard({ icon, label, valor, sub, cor, bg }: { icon: React.ReactNode; label: string; valor: number | string; sub?: string; cor: string; bg: string }) {
+  return (
+    <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 16, padding: '20px', boxShadow: '0 2px 8px rgba(31,41,55,0.04)', transition: 'all 0.2s', cursor: 'default' }}
+      onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(31,41,55,0.10)' }}
+      onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(31,41,55,0.04)' }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+        <div style={{ width: 44, height: 44, borderRadius: 12, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          {icon}
+        </div>
+        {sub && <span style={{ background: '#F0FDF4', color: '#16A34A', fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 999, fontFamily: 'Inter, sans-serif' }}>{sub}</span>}
+      </div>
+      <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.75rem', color: '#111827', lineHeight: 1, marginBottom: 4 }}>{typeof valor === 'number' ? valor.toLocaleString('pt-BR') : valor}</div>
+      <div style={{ color: '#6B7280', fontSize: 13, fontFamily: 'Inter, sans-serif' }}>{label}</div>
     </div>
   )
 }
 
-// ── Badge de status ────────────────────────────────────────────
+// ── Mini bar chart (SVG) ─────────────────────────────────────────
+function MiniBarChart({ data }: { data: { label: string; value: number }[] }) {
+  const max = Math.max(...data.map(d => d.value))
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 80, padding: '0 4px' }}>
+      {data.map((d, i) => (
+        <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+          <div style={{ width: '100%', background: `rgba(22,163,74,${0.3 + (d.value / max) * 0.7})`, borderRadius: '4px 4px 0 0', height: `${(d.value / max) * 64}px`, transition: 'height 0.5s ease', minHeight: 4 }} />
+          <span style={{ fontSize: 10, color: '#9CA3AF', fontFamily: 'Inter, sans-serif', textAlign: 'center' }}>{d.label}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ── Mini line chart (SVG) ────────────────────────────────────────
+function MiniLineChart({ data }: { data: number[] }) {
+  const max = Math.max(...data); const min = Math.min(...data)
+  const range = max - min || 1
+  const w = 280; const h = 80; const pad = 10
+  const pts = data.map((v, i) => {
+    const x = pad + (i / (data.length - 1)) * (w - pad * 2)
+    const y = h - pad - ((v - min) / range) * (h - pad * 2)
+    return `${x},${y}`
+  })
+  const path = `M ${pts.join(' L ')}`
+  const area = `M ${pts[0]} L ${pts.join(' L ')} L ${w - pad},${h} L ${pad},${h} Z`
+  return (
+    <svg width="100%" viewBox={`0 0 ${w} ${h}`} style={{ display: 'block' }}>
+      <defs>
+        <linearGradient id="lineGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#16A34A" stopOpacity="0.2" />
+          <stop offset="100%" stopColor="#16A34A" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={area} fill="url(#lineGrad)" />
+      <path d={path} fill="none" stroke="#16A34A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      {data.map((v, i) => {
+        const x = pad + (i / (data.length - 1)) * (w - pad * 2)
+        const y = h - pad - ((v - min) / range) * (h - pad * 2)
+        return <circle key={i} cx={x} cy={y} r="3" fill="white" stroke="#16A34A" strokeWidth="2" />
+      })}
+    </svg>
+  )
+}
+
+// ── BadgeStatus ──────────────────────────────────────────────────
 function BadgeStatus({ status }: { status: string }) {
   const map: Record<string, { bg: string; color: string; label: string }> = {
     pendente:  { bg: '#FEF9C3', color: '#854D0E', label: '⏳ Pendente' },
@@ -67,429 +223,782 @@ function BadgeStatus({ status }: { status: string }) {
     rejeitado: { bg: '#FEE2E2', color: '#DC2626', label: '❌ Rejeitado' },
   }
   const s = map[status] || { bg: '#F3F4F6', color: '#6B7280', label: status }
+  return <span style={{ background: s.bg, color: s.color, fontSize: 11, fontWeight: 700, fontFamily: 'Poppins, sans-serif', padding: '3px 10px', borderRadius: 999 }}>{s.label}</span>
+}
+
+// ── Toggle ───────────────────────────────────────────────────────
+function Toggle({ label, desc, value, onChange }: { label: string; desc: string; value: boolean; onChange: (v: boolean) => void }) {
   return (
-    <span style={{ background: s.bg, color: s.color, fontSize: 11, fontWeight: 700, fontFamily: 'Poppins, sans-serif', padding: '3px 10px', borderRadius: 999 }}>
-      {s.label}
-    </span>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 0', borderBottom: '1px solid #F3F4F6' }}>
+      <div>
+        <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600, fontSize: 14, color: '#111827' }}>{label}</div>
+        <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>{desc}</div>
+      </div>
+      <button onClick={() => onChange(!value)} style={{
+        width: 48, height: 26, borderRadius: 999, border: 'none', cursor: 'pointer',
+        background: value ? '#16A34A' : '#E5E7EB', transition: 'background 0.2s', position: 'relative', flexShrink: 0,
+      }}>
+        <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'white', position: 'absolute', top: 3, left: value ? 25 : 3, transition: 'left 0.2s', boxShadow: '0 1px 4px rgba(0,0,0,0.15)' }} />
+      </button>
+    </div>
   )
 }
 
-// ── Página principal ───────────────────────────────────────────
+// ── Seção Dashboard ──────────────────────────────────────────────
+function SecaoDashboard({ stats, onNavigate }: { stats: Stats | null; onNavigate: (s: Secao) => void }) {
+  const buscasSemana = [42, 67, 55, 89, 103, 78, 95]
+  const diasSemana = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
+  const categorias = [
+    { label: 'Restaurantes', value: 320 },
+    { label: 'Farmácias',    value: 210 },
+    { label: 'Açaí',        value: 195 },
+    { label: 'Mecânicas',   value: 140 },
+    { label: 'Salões',      value: 115 },
+    { label: 'Mercados',    value: 98 },
+  ]
+  const atividadeRecente = [
+    { icone: '👤', texto: 'Novo usuário cadastrado', tempo: 'há 3 min', cor: '#3B82F6' },
+    { icone: '🏪', texto: 'Comerciante aguardando aprovação', tempo: 'há 12 min', cor: '#F59E0B' },
+    { icone: '💳', texto: 'Pagamento aprovado — Plano Pro', tempo: 'há 28 min', cor: '#16A34A' },
+    { icone: '📍', texto: 'Novo comércio: Açaí do João', tempo: 'há 45 min', cor: '#8B5CF6' },
+    { icone: '🔔', texto: 'Broadcast enviado para 234 usuários', tempo: 'há 1h', cor: '#EC4899' },
+  ]
+  const topComercios = [
+    { nome: 'Farmácia Popular',        cat: 'Farmácias',    views: 1420, cliques: 312, conv: '22%', plano: 'Pro' },
+    { nome: 'Açaí da Praça',           cat: 'Açaí',        views: 1180, cliques: 278, conv: '24%', plano: 'Pro' },
+    { nome: 'Churrascaria Elohim',     cat: 'Restaurantes', views: 960,  cliques: 201, conv: '21%', plano: 'Basic' },
+    { nome: 'Salão da Cris',           cat: 'Salões',      views: 840,  cliques: 188, conv: '22%', plano: 'Pro' },
+    { nome: 'Supermercado Bem-Estar',  cat: 'Mercados',    views: 720,  cliques: 142, conv: '20%', plano: 'Basic' },
+  ]
+
+  return (
+    <div>
+      {/* Stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 28 }}>
+        <StatCard icon={<Store size={22} color="#16A34A" />}    label="Comércios ativos"   valor={stats?.total_comercios ?? '—'}    sub="+3 hoje"  cor="#16A34A" bg="#DCFCE7" />
+        <StatCard icon={<Users size={22} color="#3B82F6" />}    label="Comerciantes"        valor={stats?.total_comerciantes ?? '—'} sub="+1 hoje"  cor="#1D4ED8" bg="#DBEAFE" />
+        <StatCard icon={<TrendingUp size={22} color="#8B5CF6" />} label="Buscas hoje"       valor="529"                              sub="+12%"     cor="#6D28D9" bg="#EDE9FE" />
+        <StatCard icon={<DollarSign size={22} color="#F59E0B" />} label="Receita mensal"    valor="R$3.480"                          sub="+18%"     cor="#B45309" bg="#FEF3C7" />
+        <StatCard icon={<Activity size={22} color="#EC4899" />}  label="Leads hoje"         valor={stats?.leads_hoje ?? '—'}         sub=""         cor="#BE185D" bg="#FCE7F3" />
+        <StatCard icon={<Clock size={22} color="#F59E0B" />}     label="Aguardando aprovação" valor={stats?.pendentes ?? '—'}        sub=""         cor="#B45309" bg="#FEF3C7" />
+      </div>
+
+      {/* Alerta pendentes */}
+      {stats && stats.pendentes > 0 && (
+        <div style={{ background: '#FEF3C7', border: '1.5px solid #FDE68A', borderRadius: 14, padding: '14px 18px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <AlertTriangle size={18} color="#B45309" style={{ flexShrink: 0 }} />
+          <span style={{ color: '#92400E', fontWeight: 700, fontFamily: 'Poppins, sans-serif', fontSize: 14, flex: 1 }}>
+            {stats.pendentes} comerciante{stats.pendentes > 1 ? 's' : ''} aguardando aprovação
+          </span>
+          <button onClick={() => onNavigate('pendentes')} style={{ background: '#B45309', color: 'white', border: 'none', borderRadius: 999, padding: '6px 16px', fontSize: 12, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: 'pointer' }}>
+            Revisar
+          </button>
+        </div>
+      )}
+
+      {/* Atalho — preencher bairros */}
+      <div style={{ background: '#EFF6FF', border: '1.5px solid #BFDBFE', borderRadius: 14, padding: '14px 18px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
+        <MapPin size={18} color="#1D4ED8" style={{ flexShrink: 0 }} />
+        <span style={{ color: '#1E40AF', fontWeight: 700, fontFamily: 'Poppins, sans-serif', fontSize: 14, flex: 1 }}>
+          Comércios com bairro em branco — preencha um por um
+        </span>
+        <a href="/admin/bairros" style={{ background: '#1D4ED8', color: 'white', border: 'none', borderRadius: 999, padding: '6px 16px', fontSize: 12, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: 'pointer', textDecoration: 'none' }}>
+          Preencher
+        </a>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
+        {/* Buscas por dia */}
+        <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 16, padding: 22 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <div>
+              <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 15, color: '#111827' }}>Buscas por dia</div>
+              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#9CA3AF' }}>Últimos 7 dias</div>
+            </div>
+            <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.4rem', color: '#16A34A' }}>529</span>
+          </div>
+          <MiniLineChart data={buscasSemana} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
+            {diasSemana.map(d => <span key={d} style={{ fontSize: 10, color: '#9CA3AF', fontFamily: 'Inter, sans-serif' }}>{d}</span>)}
+          </div>
+        </div>
+
+        {/* Categorias mais buscadas */}
+        <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 16, padding: 22 }}>
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 15, color: '#111827' }}>Categorias mais buscadas</div>
+            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#9CA3AF' }}>Hoje</div>
+          </div>
+          <MiniBarChart data={categorias} />
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr', gap: 20 }}>
+        {/* Top performers */}
+        <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 16, overflow: 'hidden' }}>
+          <div style={{ padding: '18px 22px', borderBottom: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 15, color: '#111827' }}>Comércios em Destaque</div>
+            <span style={{ fontSize: 11, color: '#9CA3AF', fontFamily: 'Inter, sans-serif' }}>por visualizações</span>
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr style={{ background: '#F9FAFB' }}>
+                {['Nome', 'Categoria', 'Views', 'Cliques', 'Conv.', 'Plano'].map(h => (
+                  <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#9CA3AF', fontFamily: 'Poppins, sans-serif', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {topComercios.map((c, i) => (
+                <tr key={i} style={{ borderTop: '1px solid #F3F4F6' }}
+                  onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
+                  <td style={{ padding: '12px 14px' }}>
+                    <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600, color: '#111827', fontSize: 13 }}>{c.nome}</div>
+                    <div style={{ width: `${(c.views / 1420) * 100}%`, height: 3, background: '#DCFCE7', borderRadius: 2, marginTop: 4 }}>
+                      <div style={{ width: '100%', height: '100%', background: '#16A34A', borderRadius: 2 }} />
+                    </div>
+                  </td>
+                  <td style={{ padding: '12px 14px', color: '#6B7280', fontFamily: 'Inter, sans-serif' }}>{c.cat}</td>
+                  <td style={{ padding: '12px 14px', fontFamily: 'Poppins, sans-serif', fontWeight: 700, color: '#111827' }}>{c.views.toLocaleString('pt-BR')}</td>
+                  <td style={{ padding: '12px 14px', color: '#6B7280', fontFamily: 'Inter, sans-serif' }}>{c.cliques}</td>
+                  <td style={{ padding: '12px 14px' }}>
+                    <span style={{ background: '#DCFCE7', color: '#16A34A', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999 }}>{c.conv}</span>
+                  </td>
+                  <td style={{ padding: '12px 14px' }}>
+                    <span style={{ background: c.plano === 'Pro' ? '#DCFCE7' : '#F3F4F6', color: c.plano === 'Pro' ? '#16A34A' : '#6B7280', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999 }}>{c.plano}</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Atividade recente */}
+        <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 16, padding: 22 }}>
+          <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 15, color: '#111827', marginBottom: 18 }}>Atividade Recente</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+            {atividadeRecente.map((a, i) => (
+              <div key={i} style={{ display: 'flex', gap: 12, paddingBottom: 14, position: 'relative' }}>
+                {i < atividadeRecente.length - 1 && (
+                  <div style={{ position: 'absolute', left: 15, top: 28, bottom: 0, width: 1, background: '#F3F4F6' }} />
+                )}
+                <div style={{ width: 30, height: 30, borderRadius: '50%', background: `${a.cor}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 14, zIndex: 1 }}>
+                  {a.icone}
+                </div>
+                <div>
+                  <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#111827', marginBottom: 2 }}>{a.texto}</div>
+                  <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: '#9CA3AF' }}>{a.tempo}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Seção Monetização ────────────────────────────────────────────
+function SecaoMonetizacao() {
+  const planos = [
+    { nome: 'Público',  preco: 'Grátis', ativos: 1089, cor: '#6B7280', bg: '#F9FAFB' },
+    { nome: 'Basic',    preco: 'R$79/mês', ativos: 34, cor: '#3B82F6', bg: '#DBEAFE' },
+    { nome: 'Pro',      preco: 'R$179/mês', ativos: 18, cor: '#16A34A', bg: '#DCFCE7' },
+    { nome: 'Agência',  preco: 'R$490/mês', ativos: 2, cor: '#8B5CF6', bg: '#EDE9FE' },
+  ]
+  const total = 34 * 79 + 18 * 179 + 2 * 490
+  const funil = [
+    { label: 'Comércios cadastrados', valor: 1191, pct: 100, cor: '#E5E7EB' },
+    { label: 'Com conta criada', valor: 143, pct: 12, cor: '#DBEAFE' },
+    { label: 'Plano pago ativo', valor: 54, pct: 4.5, cor: '#DCFCE7' },
+    { label: 'Plano Pro ou Agência', valor: 20, pct: 1.7, cor: '#16A34A' },
+  ]
+  return (
+    <div>
+      <div style={{ marginBottom: 24 }}>
+        <h2 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.5rem', color: '#111827', marginBottom: 4 }}>Monetização</h2>
+        <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#9CA3AF' }}>Visão geral de planos, receita e funil de conversão</p>
+      </div>
+
+      {/* Receita total */}
+      <div style={{ background: '#16A34A', borderRadius: 20, padding: '28px 28px', marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 8px 32px rgba(22,163,74,0.2)' }}>
+        <div>
+          <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, fontFamily: 'Inter, sans-serif', marginBottom: 6 }}>Receita mensal recorrente (MRR)</div>
+          <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 900, fontSize: '2.5rem', color: 'white' }}>R${total.toLocaleString('pt-BR')}</div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 12, padding: '8px 16px', display: 'inline-block' }}>
+            <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, fontFamily: 'Inter, sans-serif' }}>Comerciantes pagantes</div>
+            <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.5rem', color: 'white' }}>54</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Cards de plano */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 28 }}>
+        {planos.map(p => (
+          <div key={p.nome} style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 16, padding: 20 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 10, background: p.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
+              <DollarSign size={18} color={p.cor} />
+            </div>
+            <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.5rem', color: p.cor }}>{p.ativos}</div>
+            <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 14, color: '#111827' }}>{p.nome}</div>
+            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>{p.preco}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Funil */}
+      <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 16, padding: 24 }}>
+        <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 15, color: '#111827', marginBottom: 20 }}>Funil de Conversão</div>
+        {funil.map((f, i) => (
+          <div key={i} style={{ marginBottom: i < funil.length - 1 ? 16 : 0 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+              <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#4B5563' }}>{f.label}</span>
+              <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 13, color: '#111827' }}>{f.valor.toLocaleString('pt-BR')} <span style={{ color: '#9CA3AF', fontWeight: 400, fontSize: 11 }}>({f.pct}%)</span></span>
+            </div>
+            <div style={{ height: 8, background: '#F3F4F6', borderRadius: 999 }}>
+              <div style={{ height: '100%', width: `${f.pct}%`, background: f.cor === '#E5E7EB' ? '#D1D5DB' : f.cor, borderRadius: 999, transition: 'width 0.6s ease' }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── Seção IA — RAG ───────────────────────────────────────────────
+function SecaoIA() {
+  const [sinonimos, setSinonimos] = useState([
+    { id: 1, chave: 'farmácia', valores: 'drogaria, remédio, medicamento, farmac' },
+    { id: 2, chave: 'restaurante', valores: 'lanche, comida, marmita, almoço, almoçar, comer, refeição, jantar' },
+    { id: 3, chave: 'açaí', valores: 'acai, geladão, ponto de açaí, açaizeiro' },
+    { id: 4, chave: 'mecânica', valores: 'oficina, borracharia, carro, automóvel' },
+    { id: 5, chave: 'salão', valores: 'cabeleireiro, cabelo, beleza, escova, studio' },
+  ])
+  const [editando, setEditando] = useState<number | null>(null)
+  const [novoValor, setNovoValor] = useState('')
+  const [toggles, setToggles] = useState({
+    proximidade: true,
+    avaliacoes: true,
+    plano_pago: true,
+    aberto_agora: false,
+  })
+  const [novoSin, setNovoSin] = useState({ chave: '', valores: '' })
+  const [adicionando, setAdicionando] = useState(false)
+
+  const salvarEdicao = (id: number) => {
+    setSinonimos(s => s.map(x => x.id === id ? { ...x, valores: novoValor } : x))
+    setEditando(null)
+  }
+  const excluir = (id: number) => setSinonimos(s => s.filter(x => x.id !== id))
+  const adicionar = () => {
+    if (!novoSin.chave.trim()) return
+    setSinonimos(s => [...s, { id: Date.now(), ...novoSin }])
+    setNovoSin({ chave: '', valores: '' }); setAdicionando(false)
+  }
+
+  return (
+    <div>
+      <div style={{ marginBottom: 24 }}>
+        <h2 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.5rem', color: '#111827', marginBottom: 4 }}>Inteligência da IA — RAG</h2>
+        <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#9CA3AF' }}>Configure como o bot interpreta as buscas dos usuários</p>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 24 }}>
+        {/* Mapeamento de sinônimos */}
+        <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 16, overflow: 'hidden' }}>
+          <div style={{ padding: '18px 22px', borderBottom: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 15, color: '#111827' }}>Mapeamento de Sinônimos</div>
+              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>Palavras que mapeiam para a mesma categoria</div>
+            </div>
+            <button onClick={() => setAdicionando(true)} style={{ background: '#16A34A', color: 'white', border: 'none', borderRadius: 999, padding: '7px 14px', fontSize: 12, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+              <Plus size={13} /> Adicionar
+            </button>
+          </div>
+          <div style={{ padding: '8px 0' }}>
+            {adicionando && (
+              <div style={{ padding: '12px 22px', background: '#F0FDF4', borderBottom: '1px solid #E5E7EB' }}>
+                <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
+                  <input value={novoSin.chave} onChange={e => setNovoSin(n => ({ ...n, chave: e.target.value }))} placeholder="Categoria (ex: pizzaria)" style={{ flex: 1, padding: '8px 12px', border: '1.5px solid #D1FAE5', borderRadius: 8, fontSize: 13, outline: 'none', fontFamily: 'Inter, sans-serif' }} />
+                  <input value={novoSin.valores} onChange={e => setNovoSin(n => ({ ...n, valores: e.target.value }))} placeholder="Sinônimos separados por vírgula" style={{ flex: 2, padding: '8px 12px', border: '1.5px solid #D1FAE5', borderRadius: 8, fontSize: 13, outline: 'none', fontFamily: 'Inter, sans-serif' }} />
+                </div>
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <button onClick={() => setAdicionando(false)} style={{ padding: '6px 14px', borderRadius: 999, border: '1.5px solid #E5E7EB', background: 'white', color: '#6B7280', fontSize: 12, cursor: 'pointer' }}>Cancelar</button>
+                  <button onClick={adicionar} style={{ padding: '6px 14px', borderRadius: 999, border: 'none', background: '#16A34A', color: 'white', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>Salvar</button>
+                </div>
+              </div>
+            )}
+            {sinonimos.map(s => (
+              <div key={s.id} style={{ padding: '14px 22px', borderBottom: '1px solid #F9FAFB', display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 13, color: '#111827', marginBottom: 6 }}>
+                    {s.chave} <span style={{ color: '#9CA3AF', fontWeight: 400 }}>=</span>
+                  </div>
+                  {editando === s.id ? (
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input value={novoValor} onChange={e => setNovoValor(e.target.value)} style={{ flex: 1, padding: '6px 10px', border: '1.5px solid #16A34A', borderRadius: 8, fontSize: 12, outline: 'none', fontFamily: 'Inter, sans-serif' }} autoFocus />
+                      <button onClick={() => salvarEdicao(s.id)} style={{ padding: '5px 12px', borderRadius: 999, border: 'none', background: '#16A34A', color: 'white', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}><Check size={12} /></button>
+                      <button onClick={() => setEditando(null)} style={{ padding: '5px 12px', borderRadius: 999, border: '1.5px solid #E5E7EB', background: 'white', color: '#6B7280', fontSize: 11, cursor: 'pointer' }}><X size={12} /></button>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                      {s.valores.split(',').map((v, i) => (
+                        <span key={i} style={{ background: '#F0FDF4', color: '#16A34A', fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 999, border: '1px solid #DCFCE7', fontFamily: 'Inter, sans-serif' }}>{v.trim()}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {editando !== s.id && (
+                  <div style={{ display: 'flex', gap: 6, flexShrink: 0, marginTop: 2 }}>
+                    <button onClick={() => { setEditando(s.id); setNovoValor(s.valores) }} style={{ width: 28, height: 28, borderRadius: 8, border: '1.5px solid #E5E7EB', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9CA3AF', transition: 'all 0.15s' }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = '#16A34A'; e.currentTarget.style.color = '#16A34A' }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.color = '#9CA3AF' }}>
+                      <Pencil size={12} />
+                    </button>
+                    <button onClick={() => excluir(s.id)} style={{ width: 28, height: 28, borderRadius: 8, border: '1.5px solid #E5E7EB', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9CA3AF', transition: 'all 0.15s' }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = '#DC2626'; e.currentTarget.style.color = '#DC2626' }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.color = '#9CA3AF' }}>
+                      <Trash2 size={12} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Parâmetros de busca */}
+        <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 16, padding: 22 }}>
+          <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 15, color: '#111827', marginBottom: 4 }}>Parâmetros de Busca</div>
+          <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#9CA3AF', marginBottom: 20 }}>Critérios de ordenação e filtro aplicados automaticamente</div>
+
+          <Toggle
+            label="Priorizar plano pago"
+            desc="Comerciantes com plano Basic/Pro aparecem primeiro"
+            value={toggles.plano_pago}
+            onChange={v => setToggles(t => ({ ...t, plano_pago: v }))}
+          />
+          <Toggle
+            label="Priorizar abertos agora"
+            desc="Comércios abertos sobem no ranking dos resultados"
+            value={toggles.aberto_agora}
+            onChange={v => setToggles(t => ({ ...t, aberto_agora: v }))}
+          />
+          <Toggle
+            label="Priorizar avaliações"
+            desc="Score = nota × log10(nº avaliações) pondera qualidade"
+            value={toggles.avaliacoes}
+            onChange={v => setToggles(t => ({ ...t, avaliacoes: v }))}
+          />
+          <Toggle
+            label="Priorizar proximidade"
+            desc="Bairro mencionado pelo usuário sobe resultados locais"
+            value={toggles.proximidade}
+            onChange={v => setToggles(t => ({ ...t, proximidade: v }))}
+          />
+
+          <div style={{ marginTop: 24, background: '#F9FAFB', borderRadius: 12, padding: 16 }}>
+            <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 13, color: '#111827', marginBottom: 10 }}>Ordem atual de prioridade</div>
+            {[
+              { n: 1, texto: 'Plano pago + ativo', ativo: toggles.plano_pago },
+              { n: 2, texto: 'Aberto agora', ativo: toggles.aberto_agora },
+              { n: 3, texto: 'Tem WhatsApp', ativo: true },
+              { n: 4, texto: 'Verificado', ativo: true },
+              { n: 5, texto: 'Nota × volume de avaliações', ativo: toggles.avaliacoes },
+            ].map(item => (
+              <div key={item.n} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                <div style={{ width: 22, height: 22, borderRadius: '50%', background: item.ativo ? '#DCFCE7' : '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: item.ativo ? '#16A34A' : '#9CA3AF' }}>{item.n}</span>
+                </div>
+                <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: item.ativo ? '#4B5563' : '#D1D5DB', textDecoration: item.ativo ? 'none' : 'line-through' }}>{item.texto}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Seção Notificações ───────────────────────────────────────────
+function SecaoNotificacoes({ pendentes }: { pendentes: number }) {
+  const alertas = [
+    { tipo: 'warning', icone: '⏳', titulo: `${pendentes} comerciante${pendentes !== 1 ? 's' : ''} aguardando aprovação`, tempo: 'agora', acao: 'Revisar' },
+    { tipo: 'info',    icone: '💳', titulo: 'Novo pagamento recebido — Plano Pro (Açaí da Praça)', tempo: '28 min atrás', acao: 'Ver' },
+    { tipo: 'success', icone: '✅', titulo: 'Broadcast enviado com sucesso para 234 usuários', tempo: '1h atrás', acao: null },
+    { tipo: 'error',   icone: '❌', titulo: 'Falha no envio Z-API — verificar credenciais', tempo: '2h atrás', acao: 'Verificar' },
+    { tipo: 'info',    icone: '📍', titulo: '3 novos comércios importados via Google Places', tempo: '3h atrás', acao: 'Ver' },
+    { tipo: 'success', icone: '🌟', titulo: 'Meta de 50 comerciantes pagantes atingida!', tempo: 'ontem', acao: null },
+  ]
+  const cores: Record<string, { bg: string; border: string; dot: string }> = {
+    warning: { bg: '#FEF3C7', border: '#FDE68A',  dot: '#F59E0B' },
+    info:    { bg: '#DBEAFE', border: '#BFDBFE',  dot: '#3B82F6' },
+    success: { bg: '#DCFCE7', border: '#BBF7D0',  dot: '#16A34A' },
+    error:   { bg: '#FEE2E2', border: '#FECACA',  dot: '#DC2626' },
+  }
+  return (
+    <div>
+      <div style={{ marginBottom: 24 }}>
+        <h2 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.5rem', color: '#111827', marginBottom: 4 }}>Notificações</h2>
+        <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#9CA3AF' }}>Alertas e eventos do sistema</p>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {alertas.map((a, i) => {
+          const c = cores[a.tipo]
+          return (
+            <div key={i} style={{ background: c.bg, border: `1.5px solid ${c.border}`, borderRadius: 14, padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: c.dot, flexShrink: 0 }} />
+              <span style={{ fontSize: 20, flexShrink: 0 }}>{a.icone}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600, fontSize: 14, color: '#111827' }}>{a.titulo}</div>
+                <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#6B7280', marginTop: 2 }}>{a.tempo}</div>
+              </div>
+              {a.acao && (
+                <button style={{ background: 'white', border: `1.5px solid ${c.border}`, borderRadius: 999, padding: '6px 14px', fontSize: 12, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: 'pointer', color: '#4B5563', flexShrink: 0 }}>
+                  {a.acao}
+                </button>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── Seção placeholder ────────────────────────────────────────────
+function SecaoPlaceholder({ titulo, icone, desc }: { titulo: string; icone: string; desc: string }) {
+  return (
+    <div style={{ textAlign: 'center', padding: '80px 40px', background: 'white', borderRadius: 20, border: '1.5px solid #E5E7EB' }}>
+      <div style={{ fontSize: 56, marginBottom: 16 }}>{icone}</div>
+      <h3 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.25rem', color: '#111827', marginBottom: 8 }}>{titulo}</h3>
+      <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#9CA3AF' }}>{desc}</p>
+      <div style={{ marginTop: 20, display: 'inline-flex', alignItems: 'center', gap: 6, background: '#DCFCE7', borderRadius: 999, padding: '6px 16px' }}>
+        <span style={{ fontSize: 11, fontWeight: 700, color: '#16A34A', fontFamily: 'Poppins, sans-serif', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Em desenvolvimento</span>
+      </div>
+    </div>
+  )
+}
+
+// ── PÁGINA PRINCIPAL ─────────────────────────────────────────────
 export default function AdminDashboard() {
   const router = useRouter()
-  const [aba, setAba]               = useState<'pendentes' | 'comerciantes' | 'comercios'>('pendentes')
-  const [stats, setStats]           = useState<Stats | null>(null)
+  const [secao, setSecao]             = useState<Secao>('dashboard')
+  const [collapsed, setCollapsed]     = useState(false)
+  const [stats, setStats]             = useState<Stats | null>(null)
   const [comerciantes, setComerciantes] = useState<Comerciante[]>([])
-  const [comercios, setComercios]   = useState<Comercio[]>([])
-  const [busca, setBusca]           = useState('')
-  const [carregando, setCarregando] = useState(true)
-  const [acao, setAcao]             = useState<string | null>(null)
-  const [motivo, setMotivo]         = useState('')
-  const [confirmar, setConfirmar]   = useState<{ id: string; tipo: 'aprovar' | 'rejeitar'; nome: string } | null>(null)
+  const [comercios, setComercios]     = useState<Comercio[]>([])
+  const [busca, setBusca]             = useState('')
+  const [carregando, setCarregando]   = useState(false)
+  const [acao, setAcao]               = useState<string | null>(null)
+  const [motivo, setMotivo]           = useState('')
+  const [confirmar, setConfirmar]     = useState<{ id: string; tipo: 'aprovar' | 'rejeitar'; nome: string } | null>(null)
 
-  // Proteção de rota
   useEffect(() => {
     const token = localStorage.getItem('admin_token')
     if (!token) router.push('/admin/login')
   }, [router])
 
   const carregarStats = useCallback(async () => {
-    try {
-      const s = await adminFetch<Stats>('/admin/stats')
-      setStats(s)
-    } catch { }
+    try { setStats(await adminFetch<Stats>('/admin/stats')) } catch { }
   }, [])
 
-  const carregarComerciantes = useCallback(async (filtro?: string) => {
+  const carregarComerciantes = useCallback(async (filtro = '') => {
     setCarregando(true)
     try {
-      const res = await adminFetch<{ data: Comerciante[] }>(`/admin/comerciantes?status=todos&busca=${filtro || ''}`)
-      setComerciantes(res.data)
-    } catch { }
-    finally { setCarregando(false) }
+      const r = await adminFetch<{ data: Comerciante[] }>(`/admin/comerciantes?status=todos&busca=${filtro}`)
+      setComerciantes(r.data)
+    } catch { } finally { setCarregando(false) }
   }, [])
 
-  const carregarComercios = useCallback(async (filtro?: string) => {
+  const carregarComercios = useCallback(async (filtro = '') => {
     setCarregando(true)
     try {
-      const res = await adminFetch<{ data: Comercio[] }>(`/admin/comercios?busca=${filtro || ''}`)
-      setComercios(res.data)
-    } catch { }
-    finally { setCarregando(false) }
+      const r = await adminFetch<{ data: Comercio[] }>(`/admin/comercios?busca=${filtro}`)
+      setComercios(r.data)
+    } catch { } finally { setCarregando(false) }
   }, [])
 
-  useEffect(() => {
-    carregarStats()
-    carregarComerciantes()
-  }, [carregarStats, carregarComerciantes])
+  useEffect(() => { carregarStats(); carregarComerciantes() }, [carregarStats, carregarComerciantes])
 
   useEffect(() => {
-    if (aba === 'comercios') carregarComercios()
-    else carregarComerciantes()
-  }, [aba, carregarComerciantes, carregarComercios])
-
-  const handleBusca = (v: string) => {
-    setBusca(v)
-    if (aba === 'comercios') carregarComercios(v)
-    else carregarComerciantes(v)
-  }
+    if (secao === 'comercios') carregarComercios(busca)
+    else if (secao === 'comerciantes' || secao === 'pendentes') carregarComerciantes(busca)
+    setBusca('')
+  }, [secao]) // eslint-disable-line
 
   const executarAcao = async () => {
     if (!confirmar) return
     setAcao(confirmar.id)
     try {
-      await adminFetch(`/admin/comerciantes/${confirmar.id}/${confirmar.tipo}`, {
-        method: 'POST',
-        body: JSON.stringify({ motivo }),
-      })
-      setConfirmar(null)
-      setMotivo('')
+      await adminFetch(`/admin/comerciantes/${confirmar.id}/${confirmar.tipo}`, { method: 'POST', body: JSON.stringify({ motivo }) })
+      setConfirmar(null); setMotivo('')
       await Promise.all([carregarStats(), carregarComerciantes(busca)])
-    } catch (e: any) {
-      alert(e.message)
-    } finally {
-      setAcao(null)
-    }
+    } catch (e: any) { alert(e.message) } finally { setAcao(null) }
   }
 
   const sair = () => {
-    localStorage.removeItem('admin_token')
-    localStorage.removeItem('admin_email')
+    localStorage.removeItem('admin_token'); localStorage.removeItem('admin_email')
     router.push('/admin/login')
   }
 
   const pendentes = comerciantes.filter(c => c.status_verificacao === 'pendente')
-  const listaAtual = aba === 'pendentes' ? pendentes : aba === 'comerciantes' ? comerciantes : []
+  const listaAtual = secao === 'pendentes' ? pendentes : comerciantes
 
-  const formatarData = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
+  const titulos: Record<Secao, string> = {
+    dashboard: 'Dashboard', pendentes: 'Aprovações Pendentes', comerciantes: 'Comerciantes',
+    comercios: 'Comércios', monetizacao: 'Monetização', anuncios: 'Anúncios',
+    ia: 'IA — RAG Inteligente', relatorios: 'Relatórios', notificacoes: 'Notificações', configuracoes: 'Configurações',
+  }
 
   return (
-    <div style={{ minHeight: '100vh', background: '#F9FAFB', fontFamily: 'Inter, sans-serif' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#F9FAFB', fontFamily: 'Inter, sans-serif' }}>
 
-      {/* Header */}
-      <header style={{
-        background: 'white', borderBottom: '1.5px solid #E5E7EB',
-        position: 'sticky', top: 0, zIndex: 50,
-        boxShadow: '0 1px 8px rgba(0,0,0,0.04)',
-      }}>
-        <div style={{ maxWidth: 1200, margin: '0 auto', padding: '0 24px', height: 64, display: 'flex', alignItems: 'center', gap: 16 }}>
-          <Image src="/logo_zappicidade.png" alt="ZappiCidade" width={140} height={36} style={{ objectFit: 'contain' }} />
-          <div style={{ background: '#DCFCE7', border: '1px solid rgba(22,163,74,0.2)', borderRadius: 999, padding: '3px 12px', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <ShieldCheck size={12} color="#16A34A" />
-            <span style={{ color: '#16A34A', fontSize: 11, fontWeight: 700, fontFamily: 'Poppins, sans-serif', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Admin</span>
-          </div>
-          <div style={{ flex: 1 }} />
-          <button onClick={() => { carregarStats(); aba === 'comercios' ? carregarComercios(busca) : carregarComerciantes(busca) }} style={{
-            background: 'none', border: '1.5px solid #E5E7EB', borderRadius: 10, padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, color: '#4B5563', fontSize: 13, fontFamily: 'Poppins, sans-serif', fontWeight: 600, transition: 'all 0.2s',
-          }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = '#16A34A'; e.currentTarget.style.color = '#16A34A' }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.color = '#4B5563' }}
-          >
-            <RefreshCw size={14} /> Atualizar
-          </button>
-          <button onClick={sair} style={{
-            background: 'none', border: '1.5px solid #E5E7EB', borderRadius: 10, padding: '8px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, color: '#4B5563', fontSize: 13, fontFamily: 'Poppins, sans-serif', fontWeight: 600, transition: 'all 0.2s',
-          }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = '#DC2626'; e.currentTarget.style.color = '#DC2626' }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.color = '#4B5563' }}
-          >
-            <LogOut size={14} /> Sair
-          </button>
-        </div>
-      </header>
+      {/* Sidebar */}
+      <Sidebar secao={secao} setSecao={setSecao} pendentes={stats?.pendentes ?? 0} collapsed={collapsed} setCollapsed={setCollapsed} onSair={sair} />
 
-      <div style={{ maxWidth: 1200, margin: '0 auto', padding: '28px 24px' }}>
+      {/* Conteúdo principal */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
 
-        {/* Stats */}
-        {stats && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14, marginBottom: 28 }}>
-            <StatCard icone={<Store size={20} color="#16A34A" />} label="Comércios" valor={stats.total_comercios} cor="#16A34A" bg="#DCFCE7" />
-            <StatCard icone={<Users size={20} color="#3B82F6" />} label="Comerciantes" valor={stats.total_comerciantes} cor="#1D4ED8" bg="#DBEAFE" />
-            <StatCard icone={<Clock size={20} color="#F59E0B" />} label="Pendentes" valor={stats.pendentes} cor="#B45309" bg="#FEF3C7" />
-            <StatCard icone={<CheckCircle2 size={20} color="#16A34A" />} label="Aprovados" valor={stats.aprovados} cor="#15803D" bg="#DCFCE7" />
-            <StatCard icone={<TrendingUp size={20} color="#8B5CF6" />} label="Leads hoje" valor={stats.leads_hoje} cor="#6D28D9" bg="#EDE9FE" />
-            <StatCard icone={<BarChart2 size={20} color="#EC4899" />} label="Leads 30d" valor={stats.leads_mes} cor="#BE185D" bg="#FCE7F3" />
-          </div>
-        )}
+        {/* Top navbar */}
+        <header style={{ background: 'white', borderBottom: '1.5px solid #E5E7EB', position: 'sticky', top: 0, zIndex: 40, boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+          <div style={{ padding: '0 28px', height: 64, display: 'flex', alignItems: 'center', gap: 16 }}>
+            <h1 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 17, color: '#111827', margin: 0 }}>{titulos[secao]}</h1>
+            <div style={{ flex: 1 }} />
 
-        {/* Banner pendentes */}
-        {stats && stats.pendentes > 0 && (
-          <div style={{
-            background: '#FEF3C7', border: '1.5px solid #FDE68A', borderRadius: 14,
-            padding: '14px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12,
-          }}>
-            <AlertTriangle size={18} color="#B45309" style={{ flexShrink: 0 }} />
-            <div style={{ flex: 1 }}>
-              <span style={{ color: '#92400E', fontWeight: 700, fontFamily: 'Poppins, sans-serif', fontSize: 14 }}>
-                {stats.pendentes} comerciante{stats.pendentes > 1 ? 's' : ''} aguardando aprovação
-              </span>
-              <span style={{ color: '#B45309', fontSize: 13, marginLeft: 6 }}>— revise abaixo</span>
+            {/* Busca global */}
+            <div style={{ position: 'relative', width: 260 }}>
+              <Search size={15} color="#9CA3AF" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+              <input
+                type="text" placeholder="Buscar dados, comerciantes..."
+                style={{ width: '100%', padding: '9px 14px 9px 34px', boxSizing: 'border-box', background: '#F9FAFB', border: '1.5px solid #E5E7EB', borderRadius: 10, fontSize: 13, color: '#111827', outline: 'none', fontFamily: 'Inter, sans-serif' }}
+                onFocus={e => (e.target.style.borderColor = '#16A34A')}
+                onBlur={e => (e.target.style.borderColor = '#E5E7EB')}
+              />
             </div>
-            <button onClick={() => setAba('pendentes')} style={{
-              background: '#B45309', color: 'white', border: 'none', borderRadius: 999,
-              padding: '6px 16px', fontSize: 12, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: 'pointer',
-            }}>
-              Ver agora
+
+            {/* Bell */}
+            <button style={{ width: 38, height: 38, borderRadius: 10, border: '1.5px solid #E5E7EB', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6B7280', position: 'relative' }}
+              onClick={() => setSecao('notificacoes')}>
+              <Bell size={17} />
+              {(stats?.pendentes ?? 0) > 0 && <div style={{ position: 'absolute', top: 6, right: 6, width: 8, height: 8, background: '#F59E0B', borderRadius: '50%', border: '2px solid white' }} />}
             </button>
-          </div>
-        )}
 
-        {/* Abas */}
-        <div style={{ display: 'flex', gap: 4, marginBottom: 20, background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 14, padding: 6 }}>
-          {([
-            { key: 'pendentes',     label: `⏳ Pendentes${stats?.pendentes ? ` (${stats.pendentes})` : ''}` },
-            { key: 'comerciantes',  label: '👥 Comerciantes' },
-            { key: 'comercios',     label: '🏪 Comércios' },
-          ] as const).map(tab => (
-            <button key={tab.key} onClick={() => { setAba(tab.key); setBusca('') }} style={{
-              flex: 1, padding: '9px 12px', borderRadius: 10, border: 'none', cursor: 'pointer',
-              fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 13, transition: 'all 0.2s',
-              background: aba === tab.key ? '#16A34A' : 'transparent',
-              color: aba === tab.key ? 'white' : '#6B7280',
-              boxShadow: aba === tab.key ? '0 2px 8px rgba(22,163,74,0.25)' : 'none',
-            }}>
-              {tab.label}
+            {/* Refresh */}
+            <button onClick={() => { carregarStats(); secao === 'comercios' ? carregarComercios(busca) : carregarComerciantes(busca) }} style={{ width: 38, height: 38, borderRadius: 10, border: '1.5px solid #E5E7EB', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6B7280' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#16A34A'; e.currentTarget.style.color = '#16A34A' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.color = '#6B7280' }}>
+              <RefreshCw size={16} />
             </button>
-          ))}
-        </div>
 
-        {/* Busca */}
-        <div style={{ position: 'relative', marginBottom: 16 }}>
-          <Search size={16} color="#9CA3AF" style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
-          <input
-            type="text" value={busca} onChange={e => handleBusca(e.target.value)}
-            placeholder={aba === 'comercios' ? 'Buscar comércio...' : 'Buscar por nome ou email...'}
-            style={{
-              width: '100%', padding: '11px 14px 11px 40px', boxSizing: 'border-box',
-              background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 12,
-              fontSize: 14, color: '#111827', outline: 'none', transition: 'border-color 0.2s',
-            }}
-            onFocus={e => (e.target.style.borderColor = '#16A34A')}
-            onBlur={e => (e.target.style.borderColor = '#E5E7EB')}
-          />
-        </div>
+            {/* + Criar anúncio */}
+            <button onClick={() => setSecao('anuncios')} style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#16A34A', color: 'white', border: 'none', borderRadius: 999, padding: '9px 18px', fontSize: 13, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: 'pointer', boxShadow: '0 4px 14px rgba(22,163,74,0.3)', transition: 'all 0.15s' }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#15803D'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#16A34A'; e.currentTarget.style.transform = 'translateY(0)' }}>
+              <Plus size={15} /> Criar anúncio
+            </button>
 
-        {/* Conteúdo */}
-        {carregando ? (
-          <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-            <div style={{ width: 32, height: 32, border: '3px solid #E5E7EB', borderTopColor: '#16A34A', borderRadius: '50%', animation: 'spin 0.7s linear infinite', margin: '0 auto 12px' }} />
-            <p style={{ color: '#9CA3AF', fontSize: 14 }}>Carregando...</p>
-          </div>
-        ) : aba !== 'comercios' ? (
-          /* ── Lista Comerciantes ── */
-          listaAtual.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '60px 20px', background: 'white', borderRadius: 16, border: '1.5px solid #E5E7EB' }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>{aba === 'pendentes' ? '🎉' : '👥'}</div>
-              <p style={{ color: '#4B5563', fontFamily: 'Poppins, sans-serif', fontWeight: 600 }}>
-                {aba === 'pendentes' ? 'Nenhum pendente no momento!' : 'Nenhum comerciante encontrado'}
-              </p>
+            {/* Avatar */}
+            <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#DCFCE7', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0 }}>
+              <ShieldCheck size={16} color="#16A34A" />
             </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {listaAtual.map(c => (
-                <div key={c.id} style={{
-                  background: 'white', border: `1.5px solid ${c.status_verificacao === 'pendente' ? '#FDE68A' : '#E5E7EB'}`,
-                  borderRadius: 16, padding: '16px 20px',
-                  boxShadow: '0 2px 8px rgba(31,41,55,0.04)',
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-                    {/* Info */}
-                    <div style={{ flex: 1, minWidth: 200 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                        <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#DCFCE7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                          <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 14, color: '#16A34A' }}>
-                            {(c.nome_completo || c.email).charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                        <div>
-                          <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 14, color: '#111827' }}>
-                            {c.nome_completo || '—'}
+          </div>
+        </header>
+
+        {/* Conteúdo da seção */}
+        <main style={{ flex: 1, padding: '28px', overflowY: 'auto' }}>
+
+          {secao === 'dashboard' && <SecaoDashboard stats={stats} onNavigate={setSecao} />}
+
+          {secao === 'monetizacao' && <SecaoMonetizacao />}
+
+          {secao === 'ia' && <SecaoIA />}
+
+          {secao === 'notificacoes' && <SecaoNotificacoes pendentes={stats?.pendentes ?? 0} />}
+
+          {(secao === 'pendentes' || secao === 'comerciantes') && (
+            <div>
+              {/* Banner pendentes */}
+              {secao === 'comerciantes' && stats && stats.pendentes > 0 && (
+                <div style={{ background: '#FEF3C7', border: '1.5px solid #FDE68A', borderRadius: 14, padding: '14px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <AlertTriangle size={18} color="#B45309" style={{ flexShrink: 0 }} />
+                  <span style={{ color: '#92400E', fontWeight: 700, fontFamily: 'Poppins, sans-serif', fontSize: 14, flex: 1 }}>{stats.pendentes} aguardando aprovação</span>
+                  <button onClick={() => setSecao('pendentes')} style={{ background: '#B45309', color: 'white', border: 'none', borderRadius: 999, padding: '6px 16px', fontSize: 12, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: 'pointer' }}>Ver agora</button>
+                </div>
+              )}
+
+              {/* Busca */}
+              <div style={{ position: 'relative', marginBottom: 16 }}>
+                <Search size={15} color="#9CA3AF" style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                <input type="text" value={busca} onChange={e => { setBusca(e.target.value); carregarComerciantes(e.target.value) }}
+                  placeholder="Buscar por nome ou email..."
+                  style={{ width: '100%', padding: '11px 14px 11px 38px', boxSizing: 'border-box', background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14, color: '#111827', outline: 'none', fontFamily: 'Inter, sans-serif' }}
+                  onFocus={e => (e.target.style.borderColor = '#16A34A')}
+                  onBlur={e => (e.target.style.borderColor = '#E5E7EB')}
+                />
+              </div>
+
+              {carregando ? (
+                <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+                  <div style={{ width: 32, height: 32, border: '3px solid #E5E7EB', borderTopColor: '#16A34A', borderRadius: '50%', animation: 'spin 0.7s linear infinite', margin: '0 auto 12px' }} />
+                  <p style={{ color: '#9CA3AF', fontSize: 14 }}>Carregando...</p>
+                </div>
+              ) : listaAtual.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '60px 20px', background: 'white', borderRadius: 16, border: '1.5px solid #E5E7EB' }}>
+                  <div style={{ fontSize: 40, marginBottom: 12 }}>{secao === 'pendentes' ? '🎉' : '👥'}</div>
+                  <p style={{ color: '#4B5563', fontFamily: 'Poppins, sans-serif', fontWeight: 600 }}>{secao === 'pendentes' ? 'Nenhum pendente!' : 'Nenhum comerciante encontrado'}</p>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {listaAtual.map(c => (
+                    <div key={c.id} style={{ background: 'white', border: `1.5px solid ${c.status_verificacao === 'pendente' ? '#FDE68A' : '#E5E7EB'}`, borderRadius: 16, padding: '16px 20px', boxShadow: '0 2px 8px rgba(31,41,55,0.04)' }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                        <div style={{ flex: 1, minWidth: 200 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+                            <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#DCFCE7', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                              <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 14, color: '#16A34A' }}>{(c.nome_completo || c.email).charAt(0).toUpperCase()}</span>
+                            </div>
+                            <div>
+                              <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 14, color: '#111827' }}>{c.nome_completo || '—'}</div>
+                              <div style={{ color: '#6B7280', fontSize: 12 }}>{c.email}</div>
+                            </div>
                           </div>
-                          <div style={{ color: '#6B7280', fontSize: 12 }}>{c.email}</div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px', marginBottom: 10 }}>
+                            {c.whatsapp && <span style={{ color: '#4B5563', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}><MessageCircle size={12} color="#25D366" /> {c.whatsapp}</span>}
+                            {c.comercios && <span style={{ color: '#4B5563', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}><Store size={12} color="#16A34A" /> {c.comercios.nome}</span>}
+                            <span style={{ color: '#9CA3AF', fontSize: 11 }}>Cadastro: {formatarData(c.criado_em)}</span>
+                          </div>
+                          <BadgeStatus status={c.status_verificacao} />
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
+                          {c.status_verificacao === 'pendente' && (
+                            <>
+                              <button onClick={() => setConfirmar({ id: c.id, tipo: 'rejeitar', nome: c.nome_completo || c.email })} disabled={acao === c.id}
+                                style={{ padding: '8px 16px', borderRadius: 999, border: '1.5px solid #FECACA', background: 'white', color: '#DC2626', fontSize: 13, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+                                <X size={14} /> Rejeitar
+                              </button>
+                              <button onClick={() => setConfirmar({ id: c.id, tipo: 'aprovar', nome: c.nome_completo || c.email })} disabled={acao === c.id}
+                                style={{ padding: '8px 16px', borderRadius: 999, border: 'none', background: '#16A34A', color: 'white', fontSize: 13, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, boxShadow: '0 3px 10px rgba(22,163,74,0.3)' }}>
+                                <Check size={14} /> Aprovar
+                              </button>
+                            </>
+                          )}
+                          {c.comercios?.slug && (
+                            <a href={`${SITE_URL}/c/${c.comercios.slug}`} target="_blank" rel="noreferrer"
+                              style={{ padding: '8px 14px', borderRadius: 999, border: '1.5px solid #E5E7EB', color: '#4B5563', fontSize: 12, fontFamily: 'Poppins, sans-serif', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
+                              Ver perfil <ChevronRight size={13} />
+                            </a>
+                          )}
                         </div>
                       </div>
-
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px', marginBottom: 8 }}>
-                        {c.whatsapp && (
-                          <span style={{ color: '#4B5563', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <MessageCircle size={12} color="#25D366" /> {c.whatsapp}
-                          </span>
-                        )}
-                        {c.comercios && (
-                          <span style={{ color: '#4B5563', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <Store size={12} color="#16A34A" /> {c.comercios.nome}
-                          </span>
-                        )}
-                        <span style={{ color: '#9CA3AF', fontSize: 11 }}>
-                          Cadastro: {formatarData(c.criado_em)}
-                        </span>
-                      </div>
-
-                      <BadgeStatus status={c.status_verificacao} />
                     </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
-                    {/* Ações */}
-                    {c.status_verificacao === 'pendente' && (
-                      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
-                        <button
-                          onClick={() => setConfirmar({ id: c.id, tipo: 'rejeitar', nome: c.nome_completo || c.email })}
-                          disabled={acao === c.id}
-                          style={{
-                            padding: '8px 16px', borderRadius: 999, border: '1.5px solid #FECACA',
-                            background: 'white', color: '#DC2626', fontSize: 13, fontWeight: 700,
-                            fontFamily: 'Poppins, sans-serif', cursor: 'pointer', transition: 'all 0.2s',
-                            display: 'flex', alignItems: 'center', gap: 5,
-                          }}
-                          onMouseEnter={e => { e.currentTarget.style.background = '#FEF2F2' }}
-                          onMouseLeave={e => { e.currentTarget.style.background = 'white' }}
-                        >
-                          <X size={14} /> Rejeitar
-                        </button>
-                        <button
-                          onClick={() => setConfirmar({ id: c.id, tipo: 'aprovar', nome: c.nome_completo || c.email })}
-                          disabled={acao === c.id}
-                          style={{
-                            padding: '8px 16px', borderRadius: 999, border: 'none',
-                            background: '#16A34A', color: 'white', fontSize: 13, fontWeight: 700,
-                            fontFamily: 'Poppins, sans-serif', cursor: 'pointer', transition: 'all 0.2s',
-                            display: 'flex', alignItems: 'center', gap: 5,
-                            boxShadow: '0 3px 10px rgba(22,163,74,0.3)',
-                          }}
-                          onMouseEnter={e => { e.currentTarget.style.background = '#15803D'; e.currentTarget.style.transform = 'translateY(-1px)' }}
-                          onMouseLeave={e => { e.currentTarget.style.background = '#16A34A'; e.currentTarget.style.transform = 'translateY(0)' }}
-                        >
-                          <Check size={14} /> Aprovar
-                        </button>
+          {secao === 'comercios' && (
+            <div>
+              <div style={{ position: 'relative', marginBottom: 16 }}>
+                <Search size={15} color="#9CA3AF" style={{ position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                <input type="text" value={busca} onChange={e => { setBusca(e.target.value); carregarComercios(e.target.value) }}
+                  placeholder="Buscar comércio..."
+                  style={{ width: '100%', padding: '11px 14px 11px 38px', boxSizing: 'border-box', background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14, color: '#111827', outline: 'none', fontFamily: 'Inter, sans-serif' }}
+                  onFocus={e => (e.target.style.borderColor = '#16A34A')}
+                  onBlur={e => (e.target.style.borderColor = '#E5E7EB')}
+                />
+              </div>
+              {carregando ? (
+                <div style={{ textAlign: 'center', padding: 60 }}>
+                  <div style={{ width: 32, height: 32, border: '3px solid #E5E7EB', borderTopColor: '#16A34A', borderRadius: '50%', animation: 'spin 0.7s linear infinite', margin: '0 auto 12px' }} />
+                </div>
+              ) : comercios.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '60px 20px', background: 'white', borderRadius: 16, border: '1.5px solid #E5E7EB' }}>
+                  <div style={{ fontSize: 40, marginBottom: 12 }}>🏪</div>
+                  <p style={{ color: '#4B5563', fontFamily: 'Poppins, sans-serif', fontWeight: 600 }}>Nenhum comércio encontrado</p>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {comercios.map(c => (
+                    <div key={c.id} style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 14, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 14 }}>
+                      <div style={{ width: 38, height: 38, borderRadius: 10, background: '#F9FAFB', border: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>{c.categorias?.icone || '🏪'}</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
+                          <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 14, color: '#111827' }}>{c.nome}</span>
+                          {c.verificado && <span style={{ background: '#DCFCE7', color: '#16A34A', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999 }}>✓ Verificado</span>}
+                          {c.destaque && <span style={{ background: '#FEF9C3', color: '#854D0E', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999 }}>⭐ Destaque</span>}
+                        </div>
+                        <div style={{ color: '#6B7280', fontSize: 12, display: 'flex', gap: 10 }}>
+                          <span>{c.categorias?.nome || '—'}</span>
+                          {c.bairro && <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}><MapPin size={10} /> {c.bairro}</span>}
+                        </div>
                       </div>
-                    )}
-                    {c.status_verificacao !== 'pendente' && c.comercios?.slug && (
-                      <a href={`http://localhost:3000/c/${c.comercios.slug}`} target="_blank" rel="noreferrer" style={{
-                        padding: '8px 14px', borderRadius: 999, border: '1.5px solid #E5E7EB',
-                        color: '#4B5563', fontSize: 12, fontFamily: 'Poppins, sans-serif', fontWeight: 600,
-                        textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5, transition: 'all 0.2s',
-                      }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = '#16A34A'; e.currentTarget.style.color = '#16A34A' }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.color = '#4B5563' }}
-                      >
-                        Ver perfil <ChevronRight size={13} />
+                      <a href={`${SITE_URL}/c/${c.slug}`} target="_blank" rel="noreferrer"
+                        style={{ padding: '7px 14px', borderRadius: 999, border: '1.5px solid #E5E7EB', color: '#4B5563', fontSize: 12, fontFamily: 'Poppins, sans-serif', fontWeight: 600, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        Ver <ChevronRight size={13} />
                       </a>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )
-        ) : (
-          /* ── Lista Comércios ── */
-          comercios.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '60px 20px', background: 'white', borderRadius: 16, border: '1.5px solid #E5E7EB' }}>
-              <div style={{ fontSize: 40, marginBottom: 12 }}>🏪</div>
-              <p style={{ color: '#4B5563', fontFamily: 'Poppins, sans-serif', fontWeight: 600 }}>Nenhum comércio encontrado</p>
-            </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {comercios.map(c => (
-                <div key={c.id} style={{
-                  background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 14,
-                  padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 14,
-                  boxShadow: '0 1px 4px rgba(31,41,55,0.04)',
-                }}>
-                  <div style={{ width: 38, height: 38, borderRadius: 10, background: '#F9FAFB', border: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>
-                    {c.categorias?.icone || '🏪'}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 3 }}>
-                      <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 14, color: '#111827' }}>{c.nome}</span>
-                      {c.verificado && <span style={{ background: '#DCFCE7', color: '#16A34A', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999 }}>✓ Verificado</span>}
-                      {c.destaque  && <span style={{ background: '#FEF9C3', color: '#854D0E', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999 }}>⭐ Destaque</span>}
                     </div>
-                    <div style={{ color: '#6B7280', fontSize: 12, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                      <span>{c.categorias?.nome || '—'}</span>
-                      {c.bairro && <span>· {c.bairro}</span>}
-                    </div>
-                  </div>
-                  <a href={`http://localhost:3000/c/${c.slug}`} target="_blank" rel="noreferrer" style={{
-                    padding: '7px 14px', borderRadius: 999, border: '1.5px solid #E5E7EB',
-                    color: '#4B5563', fontSize: 12, fontFamily: 'Poppins, sans-serif', fontWeight: 600,
-                    textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, transition: 'all 0.2s',
-                  }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#16A34A'; e.currentTarget.style.color = '#16A34A' }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.color = '#4B5563' }}
-                  >
-                    Ver <ChevronRight size={13} />
-                  </a>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
-          )
-        )}
+          )}
+
+          {secao === 'anuncios' && <SecaoPlaceholder titulo="Gerenciamento de Anúncios" icone="📢" desc="Crie e gerencie anúncios patrocinados para comerciantes." />}
+          {secao === 'relatorios' && <SecaoPlaceholder titulo="Relatórios & Analytics" icone="📊" desc="Visualize métricas detalhadas de uso, conversão e receita." />}
+          {secao === 'configuracoes' && <SecaoPlaceholder titulo="Configurações do Sistema" icone="⚙️" desc="Gerencie parâmetros globais, integrações e permissões." />}
+        </main>
       </div>
 
-      {/* Modal de confirmação */}
+      {/* FAB */}
+      <button onClick={() => setSecao('anuncios')} style={{
+        position: 'fixed', bottom: 28, right: 28, width: 52, height: 52, borderRadius: '50%',
+        background: '#16A34A', color: 'white', border: 'none', cursor: 'pointer',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        boxShadow: '0 6px 24px rgba(22,163,74,0.45)', zIndex: 50, transition: 'all 0.2s',
+      }}
+        onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.1)'; e.currentTarget.style.boxShadow = '0 8px 32px rgba(22,163,74,0.6)' }}
+        onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = '0 6px 24px rgba(22,163,74,0.45)' }}
+      >
+        <Plus size={22} />
+      </button>
+
+      {/* Modal confirmação */}
       {confirmar && (
-        <div style={{
-          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 100, padding: 20,
-        }} onClick={e => { if (e.target === e.currentTarget) setConfirmar(null) }}>
-          <div style={{
-            background: 'white', borderRadius: 20, padding: '28px 28px',
-            maxWidth: 420, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-            animation: 'fadeUp 0.2s ease forwards',
-          }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 20 }}
+          onClick={e => { if (e.target === e.currentTarget) setConfirmar(null) }}>
+          <div style={{ background: 'white', borderRadius: 20, padding: '28px', maxWidth: 420, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
             <div style={{ textAlign: 'center', marginBottom: 20 }}>
               <div style={{ fontSize: 44, marginBottom: 10 }}>{confirmar.tipo === 'aprovar' ? '✅' : '❌'}</div>
-              <h3 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.1rem', color: '#111827', marginBottom: 6 }}>
-                {confirmar.tipo === 'aprovar' ? 'Aprovar comerciante?' : 'Rejeitar comerciante?'}
-              </h3>
-              <p style={{ color: '#4B5563', fontSize: 14 }}>
-                <strong>{confirmar.nome}</strong> será {confirmar.tipo === 'aprovar' ? 'aprovado e notificado via WhatsApp' : 'rejeitado'}
-              </p>
+              <h3 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.1rem', color: '#111827', marginBottom: 6 }}>{confirmar.tipo === 'aprovar' ? 'Aprovar comerciante?' : 'Rejeitar comerciante?'}</h3>
+              <p style={{ color: '#4B5563', fontSize: 14 }}><strong>{confirmar.nome}</strong> será {confirmar.tipo === 'aprovar' ? 'aprovado e notificado' : 'rejeitado'}</p>
             </div>
-
             {confirmar.tipo === 'rejeitar' && (
               <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', color: '#111827', fontSize: 11, fontWeight: 700, fontFamily: 'Poppins, sans-serif', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
-                  Motivo (opcional)
-                </label>
-                <textarea value={motivo} onChange={e => setMotivo(e.target.value)} rows={2}
-                  placeholder="Ex: Não conseguimos confirmar a titularidade..."
-                  style={{ width: '100%', padding: '10px 12px', background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 10, fontSize: 13, color: '#111827', fontFamily: 'Inter, sans-serif', outline: 'none', resize: 'none', boxSizing: 'border-box' }}
+                <label style={{ display: 'block', color: '#111827', fontSize: 11, fontWeight: 700, fontFamily: 'Poppins, sans-serif', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Motivo (opcional)</label>
+                <textarea value={motivo} onChange={e => setMotivo(e.target.value)} rows={3} placeholder="Ex: Dados incompletos..."
+                  style={{ width: '100%', padding: '10px 14px', boxSizing: 'border-box', border: '1.5px solid #E5E7EB', borderRadius: 10, fontSize: 13, fontFamily: 'Inter, sans-serif', resize: 'none', outline: 'none' }}
                   onFocus={e => (e.target.style.borderColor = '#16A34A')}
                   onBlur={e => (e.target.style.borderColor = '#E5E7EB')}
                 />
               </div>
             )}
-
             <div style={{ display: 'flex', gap: 10 }}>
-              <button onClick={() => { setConfirmar(null); setMotivo('') }} style={{
-                flex: 1, padding: '12px', borderRadius: 999, border: '1.5px solid #E5E7EB',
-                background: 'white', color: '#4B5563', fontSize: 14, fontWeight: 600,
-                fontFamily: 'Poppins, sans-serif', cursor: 'pointer', transition: 'all 0.2s',
-              }}>
-                Cancelar
-              </button>
-              <button onClick={executarAcao} disabled={!!acao} style={{
-                flex: 1, padding: '12px', borderRadius: 999, border: 'none',
-                background: confirmar.tipo === 'aprovar' ? '#16A34A' : '#DC2626',
-                color: 'white', fontSize: 14, fontWeight: 700,
-                fontFamily: 'Poppins, sans-serif', cursor: 'pointer', transition: 'all 0.2s',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                boxShadow: confirmar.tipo === 'aprovar' ? '0 4px 14px rgba(22,163,74,0.35)' : '0 4px 14px rgba(220,38,38,0.3)',
-              }}>
-                {acao ? <div style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> : confirmar.tipo === 'aprovar' ? <><Check size={14} /> Aprovar</> : <><X size={14} /> Rejeitar</>}
+              <button onClick={() => setConfirmar(null)} style={{ flex: 1, padding: '12px', borderRadius: 999, border: '1.5px solid #E5E7EB', background: 'white', color: '#4B5563', fontSize: 14, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={executarAcao} disabled={!!acao} style={{ flex: 1, padding: '12px', borderRadius: 999, border: 'none', background: confirmar.tipo === 'aprovar' ? '#16A34A' : '#DC2626', color: 'white', fontSize: 14, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: 'pointer', boxShadow: confirmar.tipo === 'aprovar' ? '0 4px 14px rgba(22,163,74,0.35)' : '0 4px 14px rgba(220,38,38,0.35)' }}>
+                {acao ? '...' : confirmar.tipo === 'aprovar' ? 'Confirmar aprovação' : 'Confirmar rejeição'}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
-        input::placeholder, textarea::placeholder { color: #9CA3AF; }
-        * { box-sizing: border-box; }
-      `}</style>
+      <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
     </div>
   )
 }
