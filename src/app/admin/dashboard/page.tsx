@@ -325,6 +325,17 @@ function SecaoDashboard({ stats, onNavigate }: { stats: Stats | null; onNavigate
             Abrir
           </a>
         </div>
+
+        {/* Atalho — Revisar Categorias */}
+        <div style={{ background: '#FFF7ED', border: '1.5px solid #FED7AA', borderRadius: 14, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: '#FFEDD5', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>🏷️</div>
+          <span style={{ color: '#9A3412', fontWeight: 700, fontFamily: 'Poppins, sans-serif', fontSize: 13, flex: 1 }}>
+            Revisar categorias dos comércios
+          </span>
+          <a href="/admin/categorias" style={{ background: '#EA580C', color: 'white', border: 'none', borderRadius: 999, padding: '6px 14px', fontSize: 12, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap' }}>
+            Abrir
+          </a>
+        </div>
         <div style={{ background: '#EFF6FF', border: '1.5px solid #BFDBFE', borderRadius: 14, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
           <Users size={18} color="#3B82F6" style={{ flexShrink: 0 }} />
           <span style={{ color: '#1E40AF', fontWeight: 700, fontFamily: 'Poppins, sans-serif', fontSize: 13, flex: 1 }}>
