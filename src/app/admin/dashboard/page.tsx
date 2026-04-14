@@ -52,7 +52,7 @@ const MENU: { key: Secao; icon: React.ElementType; label: string; badge?: string
   { key: 'dashboard',      icon: LayoutDashboard, label: 'Dashboard' },
   { key: 'pendentes',      icon: Clock,            label: 'Aprovações',      badge: 'pendentes' },
   { key: 'comerciantes',   icon: Users,            label: 'Comerciantes',  href: '/admin/comerciantes' },
-  { key: 'comercios',      icon: Store,            label: 'Comércios' },
+  { key: 'comercios',      icon: Store,            label: 'Comércios',     href: '/admin/comercios' },
   { key: 'usuarios',       icon: MessageCircle,    label: 'Usuários Bot',    href: '/admin/usuarios' },
   { key: 'monetizacao',    icon: DollarSign,       label: 'Monetização' },
   { key: 'anuncios',       icon: Megaphone,        label: 'Anúncios' },
