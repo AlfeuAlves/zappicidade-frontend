@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import {
   Search, Save, LogOut, ArrowLeft, Store,
   CheckCircle2, XCircle, Star, MapPin, Phone,
-  Globe, Image, ExternalLink, Loader2, Sparkles
+  Globe, Image, ExternalLink, Loader2, Sparkles, Plus, Trash2
 } from 'lucide-react'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
@@ -85,12 +85,15 @@ export default function AdminComerciosPage() {
   const [selecionado, setSelecionado]   = useState<Comercio | null>(null)
   const [categorias, setCategorias]     = useState<Categoria[]>([])
   const [form, setForm]                 = useState<Partial<Comercio>>({})
+  const [modo, setModo]                 = useState<'editar' | 'novo'>('editar')
   const [salvando, setSalvando]         = useState(false)
   const [salvo, setSalvo]               = useState(false)
   const [erro, setErro]                 = useState('')
   const [enriquecendo, setEnriquecendo] = useState(false)
   const [enriquecido, setEnriquecido]   = useState<string[]>([])
   const [horarios, setHorarios]         = useState<Horarios>({})
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deletando, setDeletando]       = useState(false)
   const [pagina, setPagina]             = useState(1)
   const [totalResultados, setTotalResultados] = useState(0)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -167,22 +170,54 @@ export default function AdminComerciosPage() {
     setHorarios(data.horarios || {})
   }, [router])
 
+  const abrirNovo = useCallback(() => {
+    setSelecionado(null)
+    setModo('novo')
+    setSalvo(false)
+    setErro('')
+    setEnriquecido([])
+    setHorarios({})
+    setConfirmDelete(false)
+    setForm({ status_operacional: 'ativo', verificado: false, destaque: false })
+  }, [])
+
   const salvar = useCallback(async () => {
-    if (!selecionado) return
     setSalvando(true)
     setSalvo(false)
     setErro('')
-    const r = await adminFetch(`/admin/comercios/${selecionado.id}`, {
-      method: 'PUT',
-      body: JSON.stringify({ ...form, horarios: Object.keys(horarios).length > 0 ? horarios : form.horarios }),
-    })
+    const payload = { ...form, horarios: Object.keys(horarios).length > 0 ? horarios : (form.horarios || null) }
+    const url    = modo === 'novo' ? '/admin/comercios' : `/admin/comercios/${selecionado!.id}`
+    const method = modo === 'novo' ? 'POST' : 'PUT'
+    const r = await adminFetch(url, { method, body: JSON.stringify(payload) })
     const data = await r.json()
     setSalvando(false)
     if (!r.ok) { setErro(data.erro || 'Erro ao salvar'); return }
     setSalvo(true)
-    setSelecionado({ ...selecionado, ...form } as Comercio)
+    if (modo === 'novo') {
+      // Após criar, carrega o comércio recém-criado para edição
+      await selecionar(data.data.id)
+      setModo('editar')
+      carregarLista(busca, pagina)
+    } else {
+      setSelecionado({ ...selecionado!, ...form } as Comercio)
+      carregarLista(busca, pagina)
+    }
     setTimeout(() => setSalvo(false), 3000)
-  }, [selecionado, form])
+  }, [selecionado, form, horarios, modo, busca, pagina])
+
+  const excluir = useCallback(async () => {
+    if (!selecionado) return
+    setDeletando(true)
+    const r = await adminFetch(`/admin/comercios/${selecionado.id}`, { method: 'DELETE' })
+    setDeletando(false)
+    if (!r.ok) { setErro('Erro ao excluir'); return }
+    setSelecionado(null)
+    setForm({})
+    setHorarios({})
+    setConfirmDelete(false)
+    setModo('editar')
+    carregarLista(busca, pagina)
+  }, [selecionado, busca, pagina])
 
   const campo = (key: keyof Comercio, label: string, tipo: 'text' | 'select' | 'toggle' | 'bairro' | 'status' | 'categoria' = 'text', icone?: React.ReactNode) => {
     const val = form[key]
@@ -286,9 +321,13 @@ export default function AdminComerciosPage() {
           <ArrowLeft size={16} /> Dashboard
         </button>
         <div style={{ flex: 1 }}>
-          <h1 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.2rem', color: '#111827', margin: 0 }}>Editar Comércio</h1>
-          <p style={{ margin: 0, fontSize: 12, color: '#9CA3AF' }}>Busque qualquer comércio e edite seus dados</p>
+          <h1 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.2rem', color: '#111827', margin: 0 }}>Comércios</h1>
+          <p style={{ margin: 0, fontSize: 12, color: '#9CA3AF' }}>Busque, edite ou cadastre comércios</p>
         </div>
+        <button onClick={abrirNovo}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#16A34A', color: 'white', border: 'none', borderRadius: 10, padding: '9px 16px', fontSize: 14, fontWeight: 600, fontFamily: 'Inter, sans-serif', cursor: 'pointer' }}>
+          <Plus size={16} /> Novo
+        </button>
         <button onClick={() => { localStorage.removeItem('admin_token'); router.push('/admin/login') }}
           style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', fontSize: 13, fontFamily: 'Inter, sans-serif' }}>
           <LogOut size={15} /> Sair
@@ -377,24 +416,34 @@ export default function AdminComerciosPage() {
           )}
         </div>
 
-        {/* Formulário de edição */}
-        {selecionado && (
+        {/* Formulário de edição / novo */}
+        {(selecionado || modo === 'novo') && (
           <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 16, overflow: 'hidden' }}>
-            {/* Cabeçalho do comércio */}
+            {/* Cabeçalho */}
             <div style={{ background: 'linear-gradient(135deg, #16A34A 0%, #15803D 100%)', padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 14 }}>
               <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>
                 <Store size={24} color="white" />
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '1.1rem', color: 'white' }}>{selecionado.nome}</div>
+                <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '1.1rem', color: 'white' }}>
+                  {modo === 'novo' ? '+ Novo Comércio' : selecionado!.nome}
+                </div>
                 <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.8)' }}>
-                  {selecionado.bairro || 'sem bairro'} · slug: {selecionado.slug}
+                  {modo === 'novo' ? 'Preencha os dados abaixo' : `${selecionado!.bairro || 'sem bairro'} · slug: ${selecionado!.slug}`}
                 </div>
               </div>
-              <a href={`https://www.zappicidadebarcarena.com.br/c/${selecionado.slug}`} target="_blank" rel="noreferrer"
-                style={{ color: 'rgba(255,255,255,0.85)', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, textDecoration: 'none' }}>
-                <ExternalLink size={14} /> Ver perfil
-              </a>
+              {modo === 'editar' && selecionado && (
+                <>
+                  <a href={`https://www.zappicidadebarcarena.com.br/c/${selecionado.slug}`} target="_blank" rel="noreferrer"
+                    style={{ color: 'rgba(255,255,255,0.85)', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, textDecoration: 'none' }}>
+                    <ExternalLink size={14} /> Ver perfil
+                  </a>
+                  <button onClick={() => setConfirmDelete(true)} title="Excluir comércio"
+                    style={{ background: 'rgba(255,255,255,0.15)', border: 'none', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
+                    <Trash2 size={14} /> Excluir
+                  </button>
+                </>
+              )}
             </div>
 
             <div style={{ padding: '24px' }}>
@@ -563,8 +612,33 @@ export default function AdminComerciosPage() {
                   fontFamily: 'Poppins, sans-serif', cursor: salvando ? 'not-allowed' : 'pointer',
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
                 }}>
-                {salvando ? <><Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> Salvando...</> : <><Save size={18} /> Salvar alterações</>}
+                {salvando ? <><Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> Salvando...</> : <><Save size={18} /> {modo === 'novo' ? 'Criar comércio' : 'Salvar alterações'}</>}
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Modal confirmação exclusão */}
+        {confirmDelete && selecionado && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 16 }}>
+            <div style={{ background: 'white', borderRadius: 16, padding: 28, maxWidth: 420, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+              <div style={{ fontSize: 40, textAlign: 'center', marginBottom: 12 }}>🗑️</div>
+              <h3 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '1.1rem', color: '#111827', textAlign: 'center', margin: '0 0 8px' }}>
+                Excluir comércio?
+              </h3>
+              <p style={{ fontSize: 14, color: '#6B7280', textAlign: 'center', margin: '0 0 24px' }}>
+                <strong>{selecionado.nome}</strong> será removido permanentemente. Esta ação não pode ser desfeita.
+              </p>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={() => setConfirmDelete(false)} disabled={deletando}
+                  style={{ flex: 1, padding: 12, border: '1.5px solid #E5E7EB', borderRadius: 10, background: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#374151' }}>
+                  Cancelar
+                </button>
+                <button onClick={excluir} disabled={deletando}
+                  style={{ flex: 1, padding: 12, border: 'none', borderRadius: 10, background: deletando ? '#9CA3AF' : '#DC2626', cursor: deletando ? 'not-allowed' : 'pointer', fontSize: 14, fontWeight: 700, color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                  {deletando ? <><Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} /> Excluindo...</> : <><Trash2 size={15} /> Excluir</>}
+                </button>
+              </div>
             </div>
           </div>
         )}
