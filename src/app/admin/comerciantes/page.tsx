@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import {
   Search, Save, LogOut, ArrowLeft, UserCheck,
   CheckCircle2, XCircle, Loader2, Plus, Trash2,
-  ExternalLink, Eye, EyeOff, Edit2
+  ExternalLink, Eye, EyeOff, Edit2, Store, Link2, X
 } from 'lucide-react'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
@@ -78,6 +78,13 @@ export default function AdminComerciantesPage() {
   const [confirmDelete, setConfirmDelete] = useState<ListItem | null>(null)
   const [deletando, setDeletando]   = useState(false)
 
+  // Busca de comércio para vinculação
+  const [buscaComercio, setBuscaComercio]     = useState('')
+  const [resultadosCom, setResultadosCom]     = useState<{id:string;nome:string;slug:string;bairro:string|null}[]>([])
+  const [buscandoCom, setBuscandoCom]         = useState(false)
+  const [comercioVinculado, setComercioVinculado] = useState<{id:string;nome:string;slug:string}|null>(null)
+  const buscaComRef = useRef<ReturnType<typeof setTimeout>|null>(null)
+
   const carregarLista = useCallback((termo: string, pag: number) => {
     setCarregando(true)
     const qs = new URLSearchParams({ status: 'todos', limit: String(LIMIT), page: String(pag) })
@@ -101,11 +108,13 @@ export default function AdminComerciantesPage() {
 
   const abrirEdicao = useCallback(async (id: string) => {
     setErro(''); setSalvo(false); setMostrarSenha(false)
+    setBuscaComercio(''); setResultadosCom([])
     const r = await adminFetch(`/admin/comerciantes/${id}`)
     if (r.status === 401) { router.push('/admin/login'); return }
     const data = await r.json()
     setSelecionado(data)
     setForm({ ...data, senha: '' })
+    setComercioVinculado(data.comercios || null)
     setModo('editar')
   }, [router])
 
@@ -113,12 +122,13 @@ export default function AdminComerciantesPage() {
     setSelecionado(null)
     setForm({ nome_completo: '', email: '', telefone: '', cpf: '', whatsapp: '', senha: '', ativo: true, status_verificacao: 'aprovado' })
     setErro(''); setSalvo(false); setMostrarSenha(false)
+    setBuscaComercio(''); setResultadosCom([]); setComercioVinculado(null)
     setModo('novo')
   }
 
   const salvar = async () => {
     setSalvando(true); setSalvo(false); setErro('')
-    const payload = { ...form }
+    const payload = { ...form, comercio_id: comercioVinculado?.id || null }
     if (!payload.senha) delete payload.senha
 
     const url  = modo === 'novo' ? '/admin/comerciantes' : `/admin/comerciantes/${selecionado!.id}`
@@ -270,15 +280,79 @@ export default function AdminComerciantesPage() {
                 </div>
               </div>
 
-              {/* Comércio vinculado (somente leitura) */}
-              {modo === 'editar' && selecionado?.comercios && (
-                <div style={{ padding: '10px 14px', background: '#F0FDF4', borderRadius: 10, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <CheckCircle2 size={15} color="#16A34A" />
-                  <span style={{ fontSize: 13, color: '#15803D' }}>
-                    Vinculado a: <strong>{selecionado.comercios.nome}</strong>
-                  </span>
-                </div>
-              )}
+              {/* Comércio vinculado */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#6B7280', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  🏪 Comércio vinculado
+                </label>
+
+                {/* Mostra comércio atual */}
+                {comercioVinculado ? (
+                  <div style={{ padding: '10px 14px', background: '#F0FDF4', border: '1.5px solid #BBF7D0', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <Store size={16} color="#16A34A" />
+                    <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#15803D' }}>{comercioVinculado.nome}</span>
+                    <a href={`https://www.zappicidadebarcarena.com.br/c/${comercioVinculado.slug}`} target="_blank" rel="noreferrer"
+                      style={{ fontSize: 12, color: '#16A34A', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <ExternalLink size={13} /> Ver
+                    </a>
+                    <button onClick={() => { setComercioVinculado(null); setBuscaComercio('') }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9CA3AF', display: 'flex', alignItems: 'center' }}>
+                      <X size={15} />
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ padding: '10px 14px', background: '#FEF9C3', border: '1.5px solid #FDE68A', borderRadius: 10, fontSize: 13, color: '#92400E', marginBottom: 8 }}>
+                    ⚠️ Nenhum comércio vinculado — busque abaixo para associar
+                  </div>
+                )}
+
+                {/* Campo de busca */}
+                {!comercioVinculado && (
+                  <div style={{ position: 'relative', marginTop: 8 }}>
+                    <Search size={15} color="#9CA3AF" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+                    <input
+                      type="text"
+                      placeholder="Buscar comércio pelo nome..."
+                      value={buscaComercio}
+                      onChange={e => {
+                        setBuscaComercio(e.target.value)
+                        if (buscaComRef.current) clearTimeout(buscaComRef.current)
+                        if (!e.target.value.trim()) { setResultadosCom([]); return }
+                        buscaComRef.current = setTimeout(async () => {
+                          setBuscandoCom(true)
+                          const r = await adminFetch(`/admin/comercios?busca=${encodeURIComponent(e.target.value)}&limit=6`)
+                          const d = await r.json()
+                          setResultadosCom(d.data || [])
+                          setBuscandoCom(false)
+                        }, 350)
+                      }}
+                      style={{ width: '100%', padding: '9px 12px 9px 34px', border: '1.5px solid #E5E7EB', borderRadius: 10, fontSize: 14, outline: 'none', boxSizing: 'border-box' }}
+                      onFocus={e => e.target.style.borderColor = '#16A34A'}
+                      onBlur={e => e.target.style.borderColor = '#E5E7EB'}
+                    />
+                    {buscandoCom && <Loader2 size={14} color="#9CA3AF" style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', animation: 'spin 1s linear infinite' }} />}
+
+                    {/* Resultados */}
+                    {resultadosCom.length > 0 && (
+                      <div style={{ border: '1.5px solid #E5E7EB', borderRadius: 10, overflow: 'hidden', marginTop: 4, boxShadow: '0 4px 16px rgba(0,0,0,0.08)' }}>
+                        {resultadosCom.map((c, i) => (
+                          <button key={c.id} onClick={() => { setComercioVinculado(c); setResultadosCom([]); setBuscaComercio('') }}
+                            style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: 'white', border: 'none', borderBottom: i < resultadosCom.length - 1 ? '1px solid #F3F4F6' : 'none', cursor: 'pointer', textAlign: 'left' }}
+                            onMouseEnter={e => (e.currentTarget.style.background = '#F0FDF4')}
+                            onMouseLeave={e => (e.currentTarget.style.background = 'white')}>
+                            <Store size={15} color="#16A34A" />
+                            <div>
+                              <div style={{ fontSize: 13, fontWeight: 600, color: '#111827' }}>{c.nome}</div>
+                              {c.bairro && <div style={{ fontSize: 11, color: '#9CA3AF' }}>{c.bairro}</div>}
+                            </div>
+                            <Link2 size={13} color="#9CA3AF" style={{ marginLeft: 'auto' }} />
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
 
               {/* Feedback */}
               {erro && (
