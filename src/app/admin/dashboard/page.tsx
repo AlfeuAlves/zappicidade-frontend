@@ -781,7 +781,8 @@ export default function AdminDashboard() {
   const titulos: Record<Secao, string> = {
     dashboard: 'Dashboard', pendentes: 'Aprovações Pendentes', comerciantes: 'Comerciantes',
     comercios: 'Comércios', monetizacao: 'Monetização', anuncios: 'Anúncios',
-    ia: 'IA — RAG Inteligente', relatorios: 'Relatórios', notificacoes: 'Notificações', configuracoes: 'Configurações',
+    ia: 'IA — RAG Inteligente', relatorios: 'Relatórios', notificacoes: 'Notificações',
+    configuracoes: 'Configurações', usuarios: 'Usuários do Bot',
   }
 
   return (
