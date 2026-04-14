@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Users, MessageCircle, Clock, Search, RefreshCw, LogOut, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ArrowLeft, Users, MessageCircle, Clock, Search, RefreshCw, LogOut, ChevronLeft, ChevronRight, Send, X, CheckCircle, AlertCircle } from 'lucide-react'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
 
@@ -43,20 +43,67 @@ function formatarTelefone(w: string) {
 
 const LIMIT = 50
 
+const MSG_PADRAO = `Olá! 👋 Aqui é o *Zappi*, assistente de comércios de Barcarena.
+
+Você acessou nosso sistema recentemente e gostaríamos muito de saber sua opinião! 😊
+
+O *ZappiCidade* está em desenvolvimento e o seu feedback é muito importante pra gente.
+
+👉 O que você achou? Funcionou bem? O que poderia melhorar?
+
+Pode responder aqui mesmo ou falar diretamente comigo pelo WhatsApp:
+📱 *(91) 98359-4825* — Alfeu (fundador)
+
+Obrigado pela atenção! 🙏`
+
 export default function AdminUsuariosPage() {
   const router = useRouter()
-  const [usuarios, setUsuarios]   = useState<Usuario[]>([])
-  const [total, setTotal]         = useState(0)
-  const [pagina, setPagina]       = useState(1)
-  const [busca, setBusca]         = useState('')
-  const [loading, setLoading]     = useState(true)
-  const [token, setToken]         = useState('')
+  const [usuarios, setUsuarios]       = useState<Usuario[]>([])
+  const [total, setTotal]             = useState(0)
+  const [pagina, setPagina]           = useState(1)
+  const [busca, setBusca]             = useState('')
+  const [loading, setLoading]         = useState(true)
+  const [token, setToken]             = useState('')
+  const [modalAberto, setModalAberto] = useState(false)
+  const [mensagem, setMensagem]       = useState(MSG_PADRAO)
+  const [totalInativos, setTotalInativos] = useState<number | null>(null)
+  const [enviando, setEnviando]       = useState(false)
+  const [resultado, setResultado]     = useState<{ enviados: number; falhas: number; total: number } | null>(null)
 
   useEffect(() => {
     const t = localStorage.getItem('admin_token')
     if (!t) { router.push('/admin/login'); return }
     setToken(t)
   }, [router])
+
+  const abrirModal = async () => {
+    setResultado(null)
+    setModalAberto(true)
+    const r = await adminFetch('/admin/reengajamento/preview')
+    if (r.ok) {
+      const data = await r.json()
+      setTotalInativos(data.total_inativos)
+    }
+  }
+
+  const enviarReengajamento = async () => {
+    if (!mensagem.trim()) return
+    setEnviando(true)
+    setResultado(null)
+    try {
+      const token = localStorage.getItem('admin_token') || ''
+      const r = await fetch(`${API_URL}/admin/reengajamento`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ mensagem })
+      })
+      const data = await r.json()
+      setResultado(data)
+    } catch {
+      setResultado({ enviados: 0, falhas: 1, total: 0 })
+    }
+    setEnviando(false)
+  }
 
   const carregar = useCallback(async (p: number, q: string) => {
     setLoading(true)
@@ -100,10 +147,16 @@ export default function AdminUsuariosPage() {
             Pessoas que interagiram com o Zappi pelo WhatsApp
           </p>
         </div>
-        <button onClick={() => { localStorage.removeItem('admin_token'); router.push('/admin/login') }}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', fontSize: 13 }}>
-          <LogOut size={15} /> Sair
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button onClick={abrirModal}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#16A34A', border: 'none', cursor: 'pointer', color: 'white', fontSize: 13, fontWeight: 700, padding: '8px 16px', borderRadius: 10 }}>
+            <Send size={14} /> Reengajar inativos
+          </button>
+          <button onClick={() => { localStorage.removeItem('admin_token'); router.push('/admin/login') }}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: '#EF4444', fontSize: 13 }}>
+            <LogOut size={15} /> Sair
+          </button>
+        </div>
       </div>
 
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '28px 16px' }}>
@@ -241,6 +294,101 @@ export default function AdminUsuariosPage() {
       </div>
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
+      {/* Modal Reengajamento */}
+      {modalAberto && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: 'white', borderRadius: 20, width: '100%', maxWidth: 520, padding: 28, boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+
+            {/* Header */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <div>
+                <h2 style={{ margin: 0, fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.1rem', color: '#111827' }}>
+                  📨 Reengajar usuários inativos
+                </h2>
+                <p style={{ margin: '4px 0 0', fontSize: 13, color: '#6B7280' }}>
+                  {totalInativos === null ? 'Calculando...' : `${totalInativos} usuário${totalInativos !== 1 ? 's' : ''} com 0 interações receberá esta mensagem`}
+                </p>
+              </div>
+              <button onClick={() => setModalAberto(false)}
+                style={{ background: '#F3F4F6', border: 'none', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6B7280' }}>
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Resultado */}
+            {resultado && (
+              <div style={{
+                background: resultado.falhas === 0 ? '#F0FDF4' : '#FFF7ED',
+                border: `1.5px solid ${resultado.falhas === 0 ? '#86EFAC' : '#FED7AA'}`,
+                borderRadius: 12, padding: '14px 16px', marginBottom: 16,
+                display: 'flex', alignItems: 'center', gap: 10
+              }}>
+                {resultado.falhas === 0
+                  ? <CheckCircle size={20} color="#16A34A" />
+                  : <AlertCircle size={20} color="#F59E0B" />
+                }
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: resultado.falhas === 0 ? '#16A34A' : '#B45309' }}>
+                    {resultado.enviados} mensagem{resultado.enviados !== 1 ? 's' : ''} enviada{resultado.enviados !== 1 ? 's' : ''} com sucesso!
+                  </div>
+                  {resultado.falhas > 0 &&
+                    <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>{resultado.falhas} falha(s)</div>
+                  }
+                </div>
+              </div>
+            )}
+
+            {/* Textarea da mensagem */}
+            {!resultado && (
+              <>
+                <label style={{ fontSize: 12, fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Mensagem
+                </label>
+                <textarea
+                  value={mensagem}
+                  onChange={e => setMensagem(e.target.value)}
+                  rows={10}
+                  style={{
+                    width: '100%', marginTop: 8, padding: '12px 14px', border: '1.5px solid #E5E7EB',
+                    borderRadius: 12, fontSize: 13, fontFamily: 'Inter, sans-serif', lineHeight: 1.6,
+                    resize: 'vertical', outline: 'none', boxSizing: 'border-box', color: '#111827'
+                  }}
+                  onFocus={e => e.target.style.borderColor = '#16A34A'}
+                  onBlur={e => e.target.style.borderColor = '#E5E7EB'}
+                />
+                <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 4, textAlign: 'right' }}>
+                  {mensagem.length} caracteres
+                </div>
+              </>
+            )}
+
+            {/* Botões */}
+            <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+              <button onClick={() => setModalAberto(false)}
+                style={{ flex: 1, padding: '11px 0', border: '1.5px solid #E5E7EB', borderRadius: 12, background: 'white', cursor: 'pointer', fontSize: 14, fontWeight: 600, color: '#6B7280' }}>
+                {resultado ? 'Fechar' : 'Cancelar'}
+              </button>
+              {!resultado && (
+                <button
+                  onClick={enviarReengajamento}
+                  disabled={enviando || totalInativos === 0}
+                  style={{
+                    flex: 2, padding: '11px 0', border: 'none', borderRadius: 12, cursor: enviando || totalInativos === 0 ? 'not-allowed' : 'pointer',
+                    fontSize: 14, fontWeight: 700, color: 'white',
+                    background: enviando || totalInativos === 0 ? '#9CA3AF' : '#16A34A',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+                  }}>
+                  {enviando
+                    ? <><RefreshCw size={15} style={{ animation: 'spin 1s linear infinite' }} /> Enviando...</>
+                    : <><Send size={15} /> Enviar para {totalInativos ?? '...'} usuário{totalInativos !== 1 ? 's' : ''}</>
+                  }
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
