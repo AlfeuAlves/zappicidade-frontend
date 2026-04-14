@@ -811,7 +811,15 @@ export default function AdminDashboard() {
     <div style={{ display: 'flex', minHeight: '100vh', background: '#F9FAFB', fontFamily: 'Inter, sans-serif' }}>
 
       {/* Sidebar */}
-      <Sidebar secao={secao} setSecao={setSecao} pendentes={stats?.pendentes ?? 0} collapsed={collapsed} setCollapsed={setCollapsed} onSair={sair} />
+      <Sidebar secao={secao} setSecao={(s) => {
+        const redirecionamentos: Partial<Record<Secao, string>> = {
+          comercios:    '/admin/comercios',
+          comerciantes: '/admin/comerciantes',
+          usuarios:     '/admin/usuarios',
+        }
+        if (redirecionamentos[s]) { router.push(redirecionamentos[s]!); return }
+        setSecao(s)
+      }} pendentes={stats?.pendentes ?? 0} collapsed={collapsed} setCollapsed={setCollapsed} onSair={sair} />
 
       {/* Conteúdo principal */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
