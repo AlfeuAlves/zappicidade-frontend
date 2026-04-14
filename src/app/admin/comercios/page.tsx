@@ -584,7 +584,7 @@ export default function AdminComerciosPage() {
               </div>
 
               {/* Avaliação (somente leitura) */}
-              {selecionado.avaliacao != null && (
+              {selecionado?.avaliacao != null && (
                 <div style={{ marginTop: 12, padding: '10px 14px', background: '#F9FAFB', borderRadius: 10, display: 'flex', gap: 16 }}>
                   <span style={{ fontSize: 13, color: '#6B7280' }}>⭐ {selecionado.avaliacao?.toFixed(1)} · {selecionado.total_avaliacoes} avaliações (Google — somente leitura)</span>
                 </div>
