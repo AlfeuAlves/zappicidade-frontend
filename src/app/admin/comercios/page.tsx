@@ -170,6 +170,8 @@ export default function AdminComerciosPage() {
     setHorarios(data.horarios || {})
   }, [router])
 
+  const formRef = useRef<HTMLDivElement>(null)
+
   const abrirNovo = useCallback(() => {
     setSelecionado(null)
     setModo('novo')
@@ -179,6 +181,7 @@ export default function AdminComerciosPage() {
     setHorarios({})
     setConfirmDelete(false)
     setForm({ status_operacional: 'ativo', verificado: false, destaque: false })
+    setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
   }, [])
 
   const salvar = useCallback(async () => {
@@ -418,7 +421,7 @@ export default function AdminComerciosPage() {
 
         {/* Formulário de edição / novo */}
         {(selecionado || modo === 'novo') && (
-          <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 16, overflow: 'hidden' }}>
+          <div ref={formRef} style={{ background: 'white', border: `1.5px solid ${modo === 'novo' ? '#16A34A' : '#E5E7EB'}`, borderRadius: 16, overflow: 'hidden' }}>
             {/* Cabeçalho */}
             <div style={{ background: 'linear-gradient(135deg, #16A34A 0%, #15803D 100%)', padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 14 }}>
               <div style={{ width: 48, height: 48, borderRadius: 12, background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 24 }}>
