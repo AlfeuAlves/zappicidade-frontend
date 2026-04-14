@@ -72,31 +72,42 @@ export default function AdminComerciosPage() {
   const [salvando, setSalvando]         = useState(false)
   const [salvo, setSalvo]               = useState(false)
   const [erro, setErro]                 = useState('')
+  const [pagina, setPagina]             = useState(1)
+  const [totalResultados, setTotalResultados] = useState(0)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const LIMIT = 30
+
+  const carregarLista = useCallback((termo: string, pag: number) => {
+    setBuscando(true)
+    const qs = new URLSearchParams({ limit: String(LIMIT), page: String(pag) })
+    if (termo.trim()) qs.set('busca', termo.trim())
+    adminFetch(`/admin/comercios?${qs}`)
+      .then(r => r.json())
+      .then(d => { setResultados(d.data || []); setTotalResultados(d.total || 0); setBuscando(false) })
+      .catch(() => setBuscando(false))
+  }, [])
 
   useEffect(() => {
     const t = localStorage.getItem('admin_token')
     if (!t) { router.push('/admin/login'); return }
 
-    // Carrega categorias
+    // Carrega categorias e lista inicial
     adminFetch('/admin/categorias')
       .then(r => r.json())
       .then(d => Array.isArray(d) && setCategorias(d))
       .catch(() => {})
-  }, [router])
+
+    carregarLista('', 1)
+  }, [router, carregarLista])
 
   // Busca com debounce
   useEffect(() => {
-    if (!busca.trim()) { setResultados([]); return }
     if (timerRef.current) clearTimeout(timerRef.current)
     timerRef.current = setTimeout(() => {
-      setBuscando(true)
-      adminFetch(`/admin/comercios?busca=${encodeURIComponent(busca)}&limit=20`)
-        .then(r => r.json())
-        .then(d => { setResultados(d.data || []); setBuscando(false) })
-        .catch(() => setBuscando(false))
+      setPagina(1)
+      carregarLista(busca, 1)
     }, 400)
-  }, [busca])
+  }, [busca, carregarLista])
 
   const selecionar = useCallback(async (id: string) => {
     setSalvo(false)
@@ -106,8 +117,6 @@ export default function AdminComerciosPage() {
     const data = await r.json()
     setSelecionado(data)
     setForm(data)
-    setResultados([])
-    setBusca('')
   }, [router])
 
   const salvar = useCallback(async () => {
@@ -257,36 +266,63 @@ export default function AdminComerciosPage() {
             {buscando && <Loader2 size={16} color="#9CA3AF" style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', animation: 'spin 1s linear infinite' }} />}
           </div>
 
-          {/* Resultados */}
-          {resultados.length > 0 && (
-            <div style={{ marginTop: 8, border: '1px solid #E5E7EB', borderRadius: 10, overflow: 'hidden' }}>
-              {resultados.map((r, i) => (
-                <button key={r.id} onClick={() => selecionar(r.id)}
-                  style={{
-                    width: '100%', display: 'flex', alignItems: 'center', gap: 12,
-                    padding: '11px 14px', background: 'white', border: 'none',
-                    borderBottom: i < resultados.length - 1 ? '1px solid #F3F4F6' : 'none',
-                    cursor: 'pointer', textAlign: 'left'
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'white')}
-                >
-                  <span style={{ fontSize: 20 }}>{r.categorias?.icone || '🏪'}</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, fontSize: 14, color: '#111827' }}>{r.nome}</div>
-                    <div style={{ fontSize: 12, color: '#9CA3AF' }}>{r.categorias?.nome || '—'} · {r.bairro || 'sem bairro'}</div>
-                  </div>
-                  <span style={{
-                    fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
-                    background: r.status_operacional === 'ativo' ? '#DCFCE7' : '#FEE2E2',
-                    color: r.status_operacional === 'ativo' ? '#16A34A' : '#DC2626'
-                  }}>{r.status_operacional === 'ativo' ? 'ATIVO' : 'INATIVO'}</span>
-                </button>
-              ))}
+          {/* Lista de resultados */}
+          {buscando && (
+            <div style={{ marginTop: 12, textAlign: 'center', color: '#9CA3AF', fontSize: 14, padding: '12px 0', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Carregando...
             </div>
           )}
 
-          {busca && !buscando && resultados.length === 0 && (
+          {!buscando && resultados.length > 0 && (
+            <>
+              <div style={{ marginTop: 8, fontSize: 12, color: '#9CA3AF', marginBottom: 4 }}>
+                {totalResultados.toLocaleString('pt-BR')} comércios · página {pagina} de {Math.ceil(totalResultados / LIMIT)}
+              </div>
+              <div style={{ border: '1px solid #E5E7EB', borderRadius: 10, overflow: 'hidden' }}>
+                {resultados.map((r, i) => (
+                  <button key={r.id} onClick={() => selecionar(r.id)}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', gap: 12,
+                      padding: '11px 14px', background: selecionado?.id === r.id ? '#F0FDF4' : 'white',
+                      border: 'none', borderBottom: i < resultados.length - 1 ? '1px solid #F3F4F6' : 'none',
+                      cursor: 'pointer', textAlign: 'left'
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')}
+                    onMouseLeave={e => (e.currentTarget.style.background = selecionado?.id === r.id ? '#F0FDF4' : 'white')}
+                  >
+                    <span style={{ fontSize: 20 }}>{r.categorias?.icone || '🏪'}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 600, fontSize: 14, color: '#111827' }}>{r.nome}</div>
+                      <div style={{ fontSize: 12, color: '#9CA3AF' }}>{r.categorias?.nome || '—'} · {r.bairro || 'sem bairro'}</div>
+                    </div>
+                    <span style={{
+                      fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999,
+                      background: r.status_operacional === 'ativo' ? '#DCFCE7' : '#FEE2E2',
+                      color: r.status_operacional === 'ativo' ? '#16A34A' : '#DC2626'
+                    }}>{r.status_operacional === 'ativo' ? 'ATIVO' : 'INATIVO'}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Paginação */}
+              {Math.ceil(totalResultados / LIMIT) > 1 && (
+                <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 12 }}>
+                  <button onClick={() => { const p = Math.max(1, pagina - 1); setPagina(p); carregarLista(busca, p) }}
+                    disabled={pagina === 1}
+                    style={{ padding: '6px 14px', border: '1.5px solid #E5E7EB', borderRadius: 8, background: 'white', cursor: pagina === 1 ? 'not-allowed' : 'pointer', color: pagina === 1 ? '#D1D5DB' : '#374151', fontSize: 13, fontWeight: 600 }}>
+                    ← Anterior
+                  </button>
+                  <button onClick={() => { const p = Math.min(Math.ceil(totalResultados / LIMIT), pagina + 1); setPagina(p); carregarLista(busca, p) }}
+                    disabled={pagina === Math.ceil(totalResultados / LIMIT)}
+                    style={{ padding: '6px 14px', border: '1.5px solid #E5E7EB', borderRadius: 8, background: 'white', cursor: pagina === Math.ceil(totalResultados / LIMIT) ? 'not-allowed' : 'pointer', color: pagina === Math.ceil(totalResultados / LIMIT) ? '#D1D5DB' : '#374151', fontSize: 13, fontWeight: 600 }}>
+                    Próxima →
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+
+          {!buscando && busca && resultados.length === 0 && (
             <div style={{ marginTop: 12, textAlign: 'center', color: '#9CA3AF', fontSize: 14, padding: '12px 0' }}>
               Nenhum comércio encontrado para "{busca}"
             </div>
@@ -385,11 +421,10 @@ export default function AdminComerciosPage() {
           </div>
         )}
 
-        {!selecionado && !busca && (
-          <div style={{ textAlign: 'center', padding: '48px 0', color: '#9CA3AF' }}>
-            <Store size={48} color="#E5E7EB" style={{ marginBottom: 12 }} />
-            <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600, color: '#D1D5DB', marginBottom: 4 }}>Busque um comércio acima</p>
-            <p style={{ fontSize: 13 }}>Digite o nome e selecione para editar</p>
+        {!selecionado && (
+          <div style={{ textAlign: 'center', padding: '24px 0', color: '#9CA3AF' }}>
+            <Store size={36} color="#E5E7EB" style={{ marginBottom: 8 }} />
+            <p style={{ fontSize: 13 }}>Selecione um comércio da lista acima para editar</p>
           </div>
         )}
       </div>
