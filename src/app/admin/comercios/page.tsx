@@ -52,6 +52,7 @@ interface Comercio {
   foto_capa_url: string | null
   place_id: string | null
   horarios: Horarios | null
+  funciona_24h: boolean
 }
 
 interface Categoria {
@@ -477,8 +478,11 @@ export default function AdminComerciosPage() {
                 {campo('website',  'Website',          'text')}
               </div>
 
-              {/* Horários */}
-              <div style={{ marginBottom: 16 }}>
+              {/* Funciona 24h */}
+              {campo('funciona_24h', 'Funciona 24 horas (ex: pousadas, hospitais)', 'toggle')}
+
+              {/* Horários — só mostra se não for 24h */}
+              {!form.funciona_24h && <div style={{ marginBottom: 16 }}>
                 <label style={{ display: 'block', fontFamily: 'Inter, sans-serif', fontSize: 12, fontWeight: 600, color: '#6B7280', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   🕐 Horários de funcionamento
                 </label>
@@ -537,7 +541,7 @@ export default function AdminComerciosPage() {
                 <p style={{ fontSize: 11, color: '#9CA3AF', marginTop: 6, marginBottom: 0 }}>
                   Clique em + para ativar o dia, ✕ para marcar como fechado
                 </p>
-              </div>
+              </div>}
 
               {/* Foto capa (largura total) */}
               {campo('foto_capa_url', 'URL da foto de capa', 'text')}
