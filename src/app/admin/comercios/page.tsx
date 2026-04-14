@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import {
   Search, Save, LogOut, ArrowLeft, Store,
   CheckCircle2, XCircle, Star, MapPin, Phone,
-  Globe, Image, ExternalLink, Loader2
+  Globe, Image, ExternalLink, Loader2, Sparkles
 } from 'lucide-react'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
@@ -73,6 +73,8 @@ export default function AdminComerciosPage() {
   const [salvando, setSalvando]         = useState(false)
   const [salvo, setSalvo]               = useState(false)
   const [erro, setErro]                 = useState('')
+  const [enriquecendo, setEnriquecendo] = useState(false)
+  const [enriquecido, setEnriquecido]   = useState<string[]>([])
   const [pagina, setPagina]             = useState(1)
   const [totalResultados, setTotalResultados] = useState(0)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -110,9 +112,36 @@ export default function AdminComerciosPage() {
     }, 400)
   }, [busca, carregarLista])
 
+  const enriquecer = useCallback(async () => {
+    if (!selecionado) return
+    setEnriquecendo(true)
+    setEnriquecido([])
+    setErro('')
+    try {
+      const r = await adminFetch(`/admin/comercios/${selecionado.id}/enriquecer`, { method: 'POST' })
+      const data = await r.json()
+      if (!r.ok) { setErro(data.erro || 'Erro ao enriquecer'); return }
+      if (data.atualizados?.length > 0) {
+        setEnriquecido(data.atualizados)
+        // Recarrega o comércio para mostrar dados novos no form
+        const r2 = await adminFetch(`/admin/comercios/${selecionado.id}`)
+        const d2 = await r2.json()
+        setSelecionado(d2)
+        setForm(d2)
+      } else {
+        setEnriquecido(['nenhum'])
+      }
+    } catch (e: unknown) {
+      setErro(e instanceof Error ? e.message : 'Erro desconhecido')
+    } finally {
+      setEnriquecendo(false)
+    }
+  }, [selecionado])
+
   const selecionar = useCallback(async (id: string) => {
     setSalvo(false)
     setErro('')
+    setEnriquecido([])
     const r = await adminFetch(`/admin/comercios/${id}`)
     if (r.status === 401) { router.push('/admin/login'); return }
     const data = await r.json()
@@ -381,8 +410,43 @@ export default function AdminComerciosPage() {
               {/* Foto capa (largura total) */}
               {campo('foto_capa_url', 'URL da foto de capa', 'text')}
 
-              {/* Place ID (largura total) */}
+              {/* Place ID + botão enriquecer */}
               {campo('place_id', 'Google Place ID', 'text')}
+              <button
+                onClick={enriquecer}
+                disabled={enriquecendo || !form.place_id}
+                style={{
+                  width: '100%', marginTop: -8, marginBottom: 16,
+                  padding: '10px 16px',
+                  background: enriquecendo || !form.place_id ? '#F3F4F6' : 'linear-gradient(135deg, #7C3AED, #4F46E5)',
+                  color: enriquecendo || !form.place_id ? '#9CA3AF' : 'white',
+                  border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 600,
+                  fontFamily: 'Inter, sans-serif', cursor: enriquecendo || !form.place_id ? 'not-allowed' : 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  transition: 'opacity 0.2s'
+                }}
+              >
+                {enriquecendo
+                  ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Buscando no Google...</>
+                  : <><Sparkles size={16} /> Enriquecer com Google</>
+                }
+              </button>
+
+              {/* Feedback enriquecimento */}
+              {enriquecido.length > 0 && enriquecido[0] !== 'nenhum' && (
+                <div style={{ marginBottom: 16, padding: '10px 14px', background: '#EDE9FE', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Sparkles size={16} color="#7C3AED" />
+                  <span style={{ fontSize: 13, color: '#5B21B6', fontWeight: 600 }}>
+                    Campos atualizados: {enriquecido.join(', ')}
+                  </span>
+                </div>
+              )}
+              {enriquecido.length > 0 && enriquecido[0] === 'nenhum' && (
+                <div style={{ marginBottom: 16, padding: '10px 14px', background: '#FEF9C3', borderRadius: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Sparkles size={16} color="#D97706" />
+                  <span style={{ fontSize: 13, color: '#92400E' }}>Google não trouxe dados novos para este comércio</span>
+                </div>
+              )}
 
               {/* Toggles */}
               <div style={{ borderTop: '1px solid #F3F4F6', paddingTop: 16, marginTop: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
