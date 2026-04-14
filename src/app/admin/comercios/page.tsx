@@ -36,6 +36,7 @@ interface Comercio {
   maps_url: string | null
   website: string | null
   foto_capa_url: string | null
+  place_id: string | null
 }
 
 interface Categoria {
@@ -379,6 +380,9 @@ export default function AdminComerciosPage() {
 
               {/* Foto capa (largura total) */}
               {campo('foto_capa_url', 'URL da foto de capa', 'text')}
+
+              {/* Place ID (largura total) */}
+              {campo('place_id', 'Google Place ID', 'text')}
 
               {/* Toggles */}
               <div style={{ borderTop: '1px solid #F3F4F6', paddingTop: 16, marginTop: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
