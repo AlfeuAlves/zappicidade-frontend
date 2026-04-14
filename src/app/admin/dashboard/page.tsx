@@ -51,7 +51,7 @@ const formatarData = (iso: string) =>
 const MENU: { key: Secao; icon: React.ElementType; label: string; badge?: string; href?: string }[] = [
   { key: 'dashboard',      icon: LayoutDashboard, label: 'Dashboard' },
   { key: 'pendentes',      icon: Clock,            label: 'Aprovações',      badge: 'pendentes' },
-  { key: 'comerciantes',   icon: Users,            label: 'Comerciantes' },
+  { key: 'comerciantes',   icon: Users,            label: 'Comerciantes',  href: '/admin/comerciantes' },
   { key: 'comercios',      icon: Store,            label: 'Comércios' },
   { key: 'usuarios',       icon: MessageCircle,    label: 'Usuários Bot',    href: '/admin/usuarios' },
   { key: 'monetizacao',    icon: DollarSign,       label: 'Monetização' },
@@ -322,6 +322,17 @@ function SecaoDashboard({ stats, onNavigate }: { stats: Stats | null; onNavigate
             Editar dados de comércio
           </span>
           <a href="/admin/comercios" style={{ background: '#16A34A', color: 'white', border: 'none', borderRadius: 999, padding: '6px 14px', fontSize: 12, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap' }}>
+            Abrir
+          </a>
+        </div>
+
+        {/* Atalho — Comerciantes */}
+        <div style={{ background: '#F0FDF4', border: '1.5px solid #BBF7D0', borderRadius: 14, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: '#DCFCE7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>👤</div>
+          <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: '#166534' }}>
+            Gerenciar comerciantes
+          </span>
+          <a href="/admin/comerciantes" style={{ background: '#16A34A', color: 'white', border: 'none', borderRadius: 999, padding: '6px 14px', fontSize: 12, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: 'pointer', textDecoration: 'none', whiteSpace: 'nowrap' }}>
             Abrir
           </a>
         </div>
