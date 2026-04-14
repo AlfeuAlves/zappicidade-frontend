@@ -314,21 +314,40 @@ export default function AdminComerciosPage() {
             </div>
 
             <div style={{ padding: '24px' }}>
-              {/* Campos */}
-              {campo('nome',               'Nome',                'text')}
-              {campo('bairro',             'Bairro',              'bairro')}
-              {campo('endereco',           'Endereço',            'text')}
-              {campo('telefone',           'Telefone',            'text')}
-              {campo('whatsapp',           'WhatsApp',            'text')}
-              {campo('categoria_id',       'Categoria',           'categoria')}
-              {campo('status_operacional', 'Status',              'status')}
-              {campo('maps_url',           'Link Google Maps',    'text')}
-              {campo('website',            'Website',             'text')}
-              {campo('foto_capa_url',      'URL da foto de capa', 'text')}
+              {/* Nome (largura total) */}
+              {campo('nome', 'Nome', 'text')}
 
+              {/* Linha: Telefone + WhatsApp */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                {campo('telefone', 'Telefone', 'text')}
+                {campo('whatsapp', 'WhatsApp', 'text')}
+              </div>
+
+              {/* Linha: Bairro + Status */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                {campo('bairro',             'Bairro',  'bairro')}
+                {campo('status_operacional', 'Status',  'status')}
+              </div>
+
+              {/* Endereço (largura total) */}
+              {campo('endereco', 'Endereço', 'text')}
+
+              {/* Categoria (largura total) */}
+              {campo('categoria_id', 'Categoria', 'categoria')}
+
+              {/* Linha: Maps + Website */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                {campo('maps_url', 'Link Google Maps', 'text')}
+                {campo('website',  'Website',          'text')}
+              </div>
+
+              {/* Foto capa (largura total) */}
+              {campo('foto_capa_url', 'URL da foto de capa', 'text')}
+
+              {/* Toggles */}
               <div style={{ borderTop: '1px solid #F3F4F6', paddingTop: 16, marginTop: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                {campo('verificado', 'Verificado',   'toggle', <CheckCircle2 size={16} color="#16A34A" />)}
-                {campo('destaque',   'Em destaque',  'toggle', <Star size={16} color="#F59E0B" />)}
+                {campo('verificado', 'Verificado',  'toggle', <CheckCircle2 size={16} color="#16A34A" />)}
+                {campo('destaque',   'Em destaque', 'toggle', <Star size={16} color="#F59E0B" />)}
               </div>
 
               {/* Avaliação (somente leitura) */}
