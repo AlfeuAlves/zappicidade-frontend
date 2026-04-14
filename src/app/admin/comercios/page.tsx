@@ -19,6 +19,20 @@ const BAIRROS = [
   'Vila dos Cabanos', 'Zita Cunha',
 ]
 
+type DiaSemana = 'segunda' | 'terca' | 'quarta' | 'quinta' | 'sexta' | 'sabado' | 'domingo'
+interface HorarioDia { aberto: string; fechado: string }
+type Horarios = Partial<Record<DiaSemana, HorarioDia>>
+
+const DIAS: { key: DiaSemana; label: string }[] = [
+  { key: 'segunda',  label: 'Segunda' },
+  { key: 'terca',    label: 'Terça'   },
+  { key: 'quarta',   label: 'Quarta'  },
+  { key: 'quinta',   label: 'Quinta'  },
+  { key: 'sexta',    label: 'Sexta'   },
+  { key: 'sabado',   label: 'Sábado'  },
+  { key: 'domingo',  label: 'Domingo' },
+]
+
 interface Comercio {
   id: string
   nome: string
@@ -37,6 +51,7 @@ interface Comercio {
   website: string | null
   foto_capa_url: string | null
   place_id: string | null
+  horarios: Horarios | null
 }
 
 interface Categoria {
@@ -75,6 +90,7 @@ export default function AdminComerciosPage() {
   const [erro, setErro]                 = useState('')
   const [enriquecendo, setEnriquecendo] = useState(false)
   const [enriquecido, setEnriquecido]   = useState<string[]>([])
+  const [horarios, setHorarios]         = useState<Horarios>({})
   const [pagina, setPagina]             = useState(1)
   const [totalResultados, setTotalResultados] = useState(0)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -142,11 +158,13 @@ export default function AdminComerciosPage() {
     setSalvo(false)
     setErro('')
     setEnriquecido([])
+    setHorarios({})
     const r = await adminFetch(`/admin/comercios/${id}`)
     if (r.status === 401) { router.push('/admin/login'); return }
     const data = await r.json()
     setSelecionado(data)
     setForm(data)
+    setHorarios(data.horarios || {})
   }, [router])
 
   const salvar = useCallback(async () => {
@@ -156,7 +174,7 @@ export default function AdminComerciosPage() {
     setErro('')
     const r = await adminFetch(`/admin/comercios/${selecionado.id}`, {
       method: 'PUT',
-      body: JSON.stringify(form),
+      body: JSON.stringify({ ...form, horarios: Object.keys(horarios).length > 0 ? horarios : form.horarios }),
     })
     const data = await r.json()
     setSalvando(false)
@@ -405,6 +423,68 @@ export default function AdminComerciosPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                 {campo('maps_url', 'Link Google Maps', 'text')}
                 {campo('website',  'Website',          'text')}
+              </div>
+
+              {/* Horários */}
+              <div style={{ marginBottom: 16 }}>
+                <label style={{ display: 'block', fontFamily: 'Inter, sans-serif', fontSize: 12, fontWeight: 600, color: '#6B7280', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  🕐 Horários de funcionamento
+                </label>
+                <div style={{ border: '1.5px solid #E5E7EB', borderRadius: 10, overflow: 'hidden' }}>
+                  {DIAS.map((dia, i) => {
+                    const h = horarios[dia.key]
+                    const aberto = h?.aberto || ''
+                    const fechado = h?.fechado || ''
+                    const ativo = !!h
+                    return (
+                      <div key={dia.key} style={{
+                        display: 'grid', gridTemplateColumns: '90px 1fr 1fr 36px',
+                        alignItems: 'center', gap: 8, padding: '8px 12px',
+                        background: ativo ? 'white' : '#F9FAFB',
+                        borderBottom: i < DIAS.length - 1 ? '1px solid #F3F4F6' : 'none'
+                      }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: ativo ? '#111827' : '#9CA3AF' }}>{dia.label}</span>
+                        <input
+                          type="time"
+                          value={aberto}
+                          placeholder="Abre"
+                          onChange={e => setHorarios(h => ({ ...h, [dia.key]: { aberto: e.target.value, fechado: horarios[dia.key]?.fechado || '18:00' } }))}
+                          style={{ padding: '6px 8px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 13, fontFamily: 'Inter, sans-serif', color: '#111827', outline: 'none', width: '100%' }}
+                          onFocus={e => e.target.style.borderColor = '#16A34A'}
+                          onBlur={e => e.target.style.borderColor = '#E5E7EB'}
+                        />
+                        <input
+                          type="time"
+                          value={fechado}
+                          placeholder="Fecha"
+                          onChange={e => setHorarios(h => ({ ...h, [dia.key]: { aberto: horarios[dia.key]?.aberto || '08:00', fechado: e.target.value } }))}
+                          style={{ padding: '6px 8px', border: '1.5px solid #E5E7EB', borderRadius: 8, fontSize: 13, fontFamily: 'Inter, sans-serif', color: '#111827', outline: 'none', width: '100%' }}
+                          onFocus={e => e.target.style.borderColor = '#16A34A'}
+                          onBlur={e => e.target.style.borderColor = '#E5E7EB'}
+                        />
+                        <button
+                          title={ativo ? 'Remover dia' : 'Dia fechado'}
+                          onClick={() => {
+                            if (ativo) {
+                              setHorarios(h => { const n = { ...h }; delete n[dia.key]; return n })
+                            } else {
+                              setHorarios(h => ({ ...h, [dia.key]: { aberto: '08:00', fechado: '18:00' } }))
+                            }
+                          }}
+                          style={{
+                            width: 32, height: 32, borderRadius: 8, border: 'none', cursor: 'pointer',
+                            background: ativo ? '#FEE2E2' : '#DCFCE7',
+                            color: ativo ? '#DC2626' : '#16A34A',
+                            fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center'
+                          }}
+                        >{ativo ? '✕' : '+'}</button>
+                      </div>
+                    )
+                  })}
+                </div>
+                <p style={{ fontSize: 11, color: '#9CA3AF', marginTop: 6, marginBottom: 0 }}>
+                  Clique em + para ativar o dia, ✕ para marcar como fechado
+                </p>
               </div>
 
               {/* Foto capa (largura total) */}
