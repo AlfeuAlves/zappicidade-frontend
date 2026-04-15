@@ -226,34 +226,72 @@ export default function PaginaComercio({ comercio }: Props) {
 
           {/* ── PROMOÇÕES ── */}
           {comercio.promocoes && comercio.promocoes.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <h2 style={{ fontSize: 15, fontWeight: 700, color: '#111827', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'Poppins, sans-serif' }}>
+            <div style={{ background: 'white', borderRadius: 20, padding: '20px', marginBottom: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}>
+              <h2 style={{ fontSize: 15, fontWeight: 700, color: '#111827', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'Poppins, sans-serif' }}>
                 <Tag size={16} color="#EA580C" /> Promoções ativas
+                <span style={{ marginLeft: 'auto', background: '#FFF7ED', color: '#EA580C', fontSize: 12, fontWeight: 700, padding: '2px 10px', borderRadius: 99 }}>
+                  {comercio.promocoes.length} oferta{comercio.promocoes.length > 1 ? 's' : ''}
+                </span>
               </h2>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {comercio.promocoes.map(promo => (
-                  <div key={promo.id} style={{
-                    background: 'white', borderRadius: 16, padding: '16px',
-                    borderLeft: '4px solid #EA580C', boxShadow: '0 2px 12px rgba(0,0,0,0.06)',
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-                      <div style={{ flex: 1 }}>
-                        <h3 style={{ fontSize: 15, fontWeight: 700, color: '#111827', marginBottom: 4 }}>{promo.titulo}</h3>
-                        {promo.descricao && <p style={{ fontSize: 13, color: '#6B7280', lineHeight: 1.5 }}>{promo.descricao}</p>}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {comercio.promocoes.map(promo => {
+                  const precoPor = promo.preco_por ?? (
+                    promo.preco_de && promo.percentual_desconto
+                      ? promo.preco_de * (1 - promo.percentual_desconto / 100)
+                      : null
+                  )
+                  return (
+                    <div key={promo.id} style={{
+                      borderRadius: 14, overflow: 'hidden',
+                      border: '1.5px solid #FED7AA',
+                      background: 'linear-gradient(135deg, #FFF7ED, #FFEDD5)',
+                    }}>
+                      {/* Header laranja */}
+                      <div style={{ background: '#EA580C', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 14, color: 'white' }}>
+                          🎯 {promo.titulo}
+                        </span>
+                        {promo.percentual_desconto && (
+                          <span style={{ background: 'white', color: '#EA580C', borderRadius: 99, padding: '2px 10px', fontWeight: 800, fontSize: 14 }}>
+                            -{promo.percentual_desconto}%
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Body */}
+                      <div style={{ padding: '14px 16px' }}>
+                        {promo.descricao && (
+                          <p style={{ fontSize: 13, color: '#92400E', lineHeight: 1.5, marginBottom: 10 }}>{promo.descricao}</p>
+                        )}
+
+                        {/* Preços */}
+                        {promo.preco_de && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                            <span style={{ fontSize: 13, color: '#9CA3AF', textDecoration: 'line-through' }}>
+                              De R$ {promo.preco_de.toFixed(2).replace('.', ',')}
+                            </span>
+                            {precoPor && (
+                              <>
+                                <span style={{ color: '#EA580C', fontWeight: 700 }}>→</span>
+                                <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: 20, color: '#16A34A' }}>
+                                  R$ {precoPor.toFixed(2).replace('.', ',')}
+                                </span>
+                              </>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Validade */}
                         {promo.fim && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 8, fontSize: 12, color: '#9CA3AF' }}>
-                            <Calendar size={11} /> Válido até {new Date(promo.fim).toLocaleDateString('pt-BR')}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#92400E' }}>
+                            <Calendar size={12} />
+                            Válido até {new Date(promo.fim).toLocaleDateString('pt-BR')}
                           </div>
                         )}
                       </div>
-                      {promo.percentual_desconto && (
-                        <div style={{ background: '#EA580C', color: 'white', borderRadius: 10, padding: '6px 12px', fontWeight: 800, fontSize: 18, flexShrink: 0 }}>
-                          -{promo.percentual_desconto}%
-                        </div>
-                      )}
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           )}
