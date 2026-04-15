@@ -4,7 +4,8 @@ import { useRouter } from 'next/navigation'
 import {
   Search, Save, LogOut, ArrowLeft, Store,
   CheckCircle2, XCircle, Star, MapPin, Phone,
-  Globe, Image, ExternalLink, Loader2, Sparkles, Plus, Trash2
+  Globe, Image, ExternalLink, Loader2, Sparkles, Plus, Trash2,
+  QrCode, Download, Copy, RefreshCw
 } from 'lucide-react'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
@@ -55,6 +56,15 @@ interface Comercio {
   funciona_24h: boolean
 }
 
+interface QRCodeData {
+  id: string
+  codigo: string
+  url: string
+  qr_image_url: string
+  total_scans: number
+  ultima_vez: string | null
+}
+
 interface Categoria {
   id: string
   nome: string
@@ -95,6 +105,10 @@ export default function AdminComerciosPage() {
   const [horarios, setHorarios]         = useState<Horarios>({})
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deletando, setDeletando]       = useState(false)
+  const [qrcode, setQrcode]             = useState<QRCodeData | null>(null)
+  const [qrCarregado, setQrCarregado]   = useState(false)
+  const [gerandoQr, setGerandoQr]       = useState(false)
+  const [qrCopiado, setQrCopiado]       = useState(false)
   const [pagina, setPagina]             = useState(1)
   const [totalResultados, setTotalResultados] = useState(0)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -163,13 +177,53 @@ export default function AdminComerciosPage() {
     setErro('')
     setEnriquecido([])
     setHorarios({})
+    setQrcode(null)
+    setQrCarregado(false)
     const r = await adminFetch(`/admin/comercios/${id}`)
     if (r.status === 401) { router.push('/admin/login'); return }
     const data = await r.json()
     setSelecionado(data)
     setForm(data)
     setHorarios(data.horarios || {})
+    // Carrega QR code existente silenciosamente
+    adminFetch(`/admin/comercios/${id}/qrcode`)
+      .then(r2 => r2.json())
+      .then(d => { setQrcode(d.qrcode || null); setQrCarregado(true) })
+      .catch(() => setQrCarregado(true))
   }, [router])
+
+  const gerarQrCode = useCallback(async () => {
+    if (!selecionado) return
+    setGerandoQr(true)
+    try {
+      const r = await adminFetch(`/admin/comercios/${selecionado.id}/qrcode`, { method: 'POST' })
+      const data = await r.json()
+      if (r.ok) setQrcode(data.qrcode)
+      else setErro(data.erro || 'Erro ao gerar QR Code')
+    } catch {
+      setErro('Erro ao gerar QR Code')
+    } finally {
+      setGerandoQr(false)
+    }
+  }, [selecionado])
+
+  const copiarLinkQr = useCallback(() => {
+    if (!qrcode) return
+    navigator.clipboard.writeText(qrcode.url)
+    setQrCopiado(true)
+    setTimeout(() => setQrCopiado(false), 2000)
+  }, [qrcode])
+
+  const baixarQrCode = useCallback(() => {
+    if (!qrcode || !selecionado) return
+    const link = document.createElement('a')
+    link.href = qrcode.qr_image_url
+    link.download = `qrcode-${selecionado.slug || selecionado.id}.png`
+    link.target = '_blank'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }, [qrcode, selecionado])
 
   const formRef = useRef<HTMLDivElement>(null)
 
@@ -181,6 +235,8 @@ export default function AdminComerciosPage() {
     setEnriquecido([])
     setHorarios({})
     setConfirmDelete(false)
+    setQrcode(null)
+    setQrCarregado(false)
     setForm({ status_operacional: 'ativo', verificado: false, destaque: false })
     setTimeout(() => formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
   }, [])
@@ -621,6 +677,135 @@ export default function AdminComerciosPage() {
                 }}>
                 {salvando ? <><Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> Salvando...</> : <><Save size={18} /> {modo === 'novo' ? 'Criar comércio' : 'Salvar alterações'}</>}
               </button>
+
+              {/* ── Seção QR Code (somente no modo editar) ──────── */}
+              {modo === 'editar' && qrCarregado && (
+                <div style={{ marginTop: 28, borderTop: '2px dashed #E5E7EB', paddingTop: 24 }}>
+                  {/* Header */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 10, background: '#F0FDF4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <QrCode size={20} color="#16A34A" />
+                    </div>
+                    <div>
+                      <p style={{ margin: 0, fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 15, color: '#111827' }}>QR Code</p>
+                      <p style={{ margin: 0, fontSize: 12, color: '#6B7280' }}>Clientes escaneiam e vão direto ao WhatsApp do Zappi</p>
+                    </div>
+                  </div>
+
+                  {/* Sem QR ainda */}
+                  {!qrcode && (
+                    <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                      <div style={{ fontSize: 40, marginBottom: 8 }}>🔲</div>
+                      <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 16 }}>
+                        Este comércio ainda não tem QR Code.<br />
+                        Gere um para colocar no balcão, cardápio ou panfleto.
+                      </p>
+                      <button
+                        onClick={gerarQrCode}
+                        disabled={gerandoQr}
+                        style={{
+                          padding: '12px 28px', borderRadius: 10, border: 'none', cursor: gerandoQr ? 'not-allowed' : 'pointer',
+                          background: gerandoQr ? '#9CA3AF' : '#16A34A', color: 'white',
+                          fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 14,
+                          display: 'inline-flex', alignItems: 'center', gap: 8
+                        }}
+                      >
+                        {gerandoQr
+                          ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Gerando...</>
+                          : <><QrCode size={16} /> Gerar QR Code</>
+                        }
+                      </button>
+                    </div>
+                  )}
+
+                  {/* QR gerado */}
+                  {qrcode && (
+                    <div>
+                      {/* Imagem QR */}
+                      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+                        <div style={{ padding: 16, background: 'white', borderRadius: 16, boxShadow: '0 4px 20px rgba(0,0,0,0.1)', border: '1px solid #E5E7EB', display: 'inline-block' }}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={qrcode.qr_image_url}
+                            alt="QR Code"
+                            width={200}
+                            height={200}
+                            style={{ display: 'block', borderRadius: 8 }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Estatísticas */}
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: 24, marginBottom: 16 }}>
+                        <div style={{ textAlign: 'center' }}>
+                          <p style={{ margin: 0, fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: 28, color: '#16A34A' }}>{qrcode.total_scans}</p>
+                          <p style={{ margin: 0, fontSize: 11, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>scans totais</p>
+                        </div>
+                        {qrcode.ultima_vez && (
+                          <div style={{ textAlign: 'center' }}>
+                            <p style={{ margin: 0, fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 14, color: '#374151' }}>
+                              {new Date(qrcode.ultima_vez).toLocaleDateString('pt-BR')}
+                            </p>
+                            <p style={{ margin: 0, fontSize: 11, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em' }}>último scan</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* URL rastreável */}
+                      <div style={{ background: '#F9FAFB', borderRadius: 10, padding: '10px 14px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <code style={{ fontSize: 11, color: '#374151', flex: 1, wordBreak: 'break-all', fontFamily: 'monospace' }}>
+                          {qrcode.url}
+                        </code>
+                      </div>
+
+                      {/* Botões de ação */}
+                      <div style={{ display: 'flex', gap: 10 }}>
+                        <button
+                          onClick={copiarLinkQr}
+                          style={{
+                            flex: 1, padding: '10px', border: '1.5px solid #E5E7EB', borderRadius: 10,
+                            background: qrCopiado ? '#DCFCE7' : 'white', cursor: 'pointer',
+                            fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: 13,
+                            color: qrCopiado ? '#16A34A' : '#374151',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                            transition: 'all 0.2s'
+                          }}
+                        >
+                          {qrCopiado
+                            ? <><CheckCircle2 size={14} /> Copiado!</>
+                            : <><Copy size={14} /> Copiar link</>
+                          }
+                        </button>
+                        <button
+                          onClick={baixarQrCode}
+                          style={{
+                            flex: 1, padding: '10px', border: 'none', borderRadius: 10,
+                            background: 'linear-gradient(135deg, #16A34A, #15803D)', cursor: 'pointer',
+                            fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: 13, color: 'white',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
+                          }}
+                        >
+                          <Download size={14} /> Baixar PNG
+                        </button>
+                      </div>
+
+                      {/* Regenerar */}
+                      <button
+                        onClick={gerarQrCode}
+                        disabled={gerandoQr}
+                        style={{
+                          marginTop: 10, width: '100%', padding: '8px', border: '1px dashed #D1D5DB',
+                          borderRadius: 8, background: 'transparent', cursor: 'pointer',
+                          fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#9CA3AF',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6
+                        }}
+                      >
+                        <RefreshCw size={12} /> Regenerar QR Code
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
