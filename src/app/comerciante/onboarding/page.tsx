@@ -889,7 +889,7 @@ export default function OnboardingPage() {
     finally { setVinculando(false) }
   }
 
-  const handleAtivar = (_plano: string) => { router.push('/comerciante/dashboard') }
+  const handleAtivar = (_plano: string) => { router.push('/comerciante/dashboard?setup=1') }
 
   return (
     <div style={{

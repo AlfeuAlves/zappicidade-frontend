@@ -1037,6 +1037,16 @@ export default function DashboardPage() {
   }, [])
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('setup') === '1') {
+      setSeção('perfil')
+      setToast({ msg: '🎉 Conta ativada! Complete as informações do seu negócio abaixo.', tipo: 'sucesso' })
+      setTimeout(() => setToast(null), 5000)
+      window.history.replaceState({}, '', '/comerciante/dashboard')
+    }
+  }, [])
+
+  useEffect(() => {
     const sessao = obterSessao()
     if (!sessao) { router.push('/comerciante/login'); return }
     if (!sessao.comerciante.comercio_id) { router.push('/comerciante/onboarding'); return }
