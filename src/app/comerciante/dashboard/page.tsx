@@ -1014,6 +1014,14 @@ export default function DashboardPage() {
   const [modalVender, setModalVender]       = useState(false)
   const [modalAnuncio, setModalAnuncio]     = useState(false)
   const [nomePerfil, setNomePerfil]         = useState('')
+  const [isMobile, setIsMobile]             = useState(false)
+
+  useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
 
   useEffect(() => {
     const sessao = obterSessao()
@@ -1048,8 +1056,8 @@ export default function DashboardPage() {
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#F8FAFC', fontFamily: 'Inter, sans-serif' }}>
 
-      {/* Sidebar */}
-      <aside style={{ width: 248, flexShrink: 0, background: 'white', borderRight: '1.5px solid #E5E7EB', height: '100vh', position: 'sticky', top: 0, display: 'flex', flexDirection: 'column', boxShadow: '2px 0 8px rgba(0,0,0,0.03)' }}>
+      {/* Sidebar — oculta no mobile */}
+      <aside style={{ width: 248, flexShrink: 0, background: 'white', borderRight: '1.5px solid #E5E7EB', height: '100vh', position: 'sticky', top: 0, display: isMobile ? 'none' : 'flex', flexDirection: 'column', boxShadow: '2px 0 8px rgba(0,0,0,0.03)' }}>
 
         {/* Logo */}
         <div style={{ padding: '20px 20px 16px', borderBottom: '1px solid #F1F5F9' }}>
@@ -1141,32 +1149,43 @@ export default function DashboardPage() {
 
         {/* Header */}
         <header style={{ background: 'white', borderBottom: '1.5px solid #E5E7EB', position: 'sticky', top: 0, zIndex: 40, boxShadow: '0 1px 6px rgba(0,0,0,0.04)' }}>
-          <div style={{ padding: '0 32px', height: 64, display: 'flex', alignItems: 'center', gap: 16 }}>
-            <div>
-              <h1 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 16, color: '#111827', margin: 0, lineHeight: 1.2 }}>{titulos[seção]}</h1>
-              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: '#94A3B8', marginTop: 2 }}>ZappiCidade — Painel do Comerciante</div>
-            </div>
+          <div style={{ padding: isMobile ? '0 16px' : '0 32px', height: isMobile ? 56 : 64, display: 'flex', alignItems: 'center', gap: 12 }}>
+
+            {/* Logo só no mobile (substituindo sidebar) */}
+            {isMobile && (
+              <Link href="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none', flexShrink: 0 }}>
+                <Image src="/logo_zappicidade.png" alt="ZappiCidade" width={100} height={26} style={{ objectFit: 'contain' }} />
+              </Link>
+            )}
+
+            {!isMobile && (
+              <div>
+                <h1 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 16, color: '#111827', margin: 0, lineHeight: 1.2 }}>{titulos[seção]}</h1>
+                <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: '#94A3B8', marginTop: 2 }}>ZappiCidade — Painel do Comerciante</div>
+              </div>
+            )}
+
             <div style={{ flex: 1 }} />
 
-            {/* VENDER AGORA */}
+            {/* VENDER AGORA — ícone no mobile, botão completo no desktop */}
             <button onClick={() => setModalVender(true)} style={{
-              display: 'flex', alignItems: 'center', gap: 8, background: '#FACC15',
-              color: '#111827', border: 'none', borderRadius: 12, padding: '10px 22px',
+              display: 'flex', alignItems: 'center', gap: isMobile ? 0 : 8, background: '#FACC15',
+              color: '#111827', border: 'none', borderRadius: 12,
+              padding: isMobile ? '9px 12px' : '10px 22px',
               fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: 13, cursor: 'pointer',
               boxShadow: '0 4px 16px rgba(250,204,21,0.45)', transition: 'all 0.15s',
               letterSpacing: '-0.01em',
-            }}
-              onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(250,204,21,0.55)' }}
-              onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(250,204,21,0.45)' }}>
-              <Zap size={15} /> Vender Agora
+            }}>
+              <Zap size={15} />
+              {!isMobile && ' Vender Agora'}
             </button>
 
             {/* Avatar */}
             <div style={{
-              width: 36, height: 36, borderRadius: '50%', cursor: 'pointer',
+              width: 34, height: 34, borderRadius: '50%', cursor: 'pointer',
               background: 'linear-gradient(135deg, #DCFCE7, #BBF7D0)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: 14, color: '#16A34A',
+              fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: 13, color: '#16A34A',
               flexShrink: 0, border: '2px solid #DCFCE7',
             }}>
               {nomePerfil.charAt(0).toUpperCase()}
@@ -1183,7 +1202,7 @@ export default function DashboardPage() {
             <p style={{ color: '#9CA3AF', fontFamily: 'Inter, sans-serif', fontSize: 14, margin: 0 }}>Carregando seu painel...</p>
           </div>
         ) : (
-          <main style={{ flex: 1, padding: '32px', overflowY: 'auto' }}>
+          <main style={{ flex: 1, padding: isMobile ? '16px 12px 90px' : '32px', overflowY: 'auto' }}>
             {seção === 'dashboard'   && <SecaoDashboard dados={dados} comerciante={comerciante} onCriarAnuncio={() => setModalAnuncio(true)} onVenderAgora={() => setModalVender(true)} />}
             {seção === 'campanhas'   && <SecaoCampanhas dados={dados} onCriarAnuncio={() => setModalAnuncio(true)} />}
             {seção === 'perfil'      && <SecaoMeuNegocio />}
@@ -1200,6 +1219,37 @@ export default function DashboardPage() {
           </main>
         )}
       </div>
+
+      {/* Bottom Navigation — só mobile */}
+      {isMobile && (
+        <nav style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50,
+          background: 'white', borderTop: '1.5px solid #E5E7EB',
+          display: 'flex', alignItems: 'stretch',
+          boxShadow: '0 -4px 16px rgba(0,0,0,0.08)',
+          paddingBottom: 'env(safe-area-inset-bottom)',
+        }}>
+          {navItems.map(item => {
+            const ativo = seção === item.id
+            return (
+              <button key={item.id} onClick={() => setSeção(item.id)} style={{
+                flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center',
+                justifyContent: 'center', gap: 4, padding: '10px 4px',
+                border: 'none', background: 'transparent', cursor: 'pointer',
+                color: ativo ? '#16A34A' : '#94A3B8',
+                borderTop: ativo ? '2px solid #16A34A' : '2px solid transparent',
+                transition: 'all 0.15s',
+              }}>
+                {item.icon}
+                <span style={{
+                  fontFamily: 'Inter, sans-serif', fontSize: 10, fontWeight: ativo ? 700 : 500,
+                  lineHeight: 1,
+                }}>{item.label}</span>
+              </button>
+            )
+          })}
+        </nav>
+      )}
 
       {/* Modais */}
       {modalVender  && <ModalVenderAgora  onClose={() => setModalVender(false)}  onSalvar={() => setModalVender(false)} />}
