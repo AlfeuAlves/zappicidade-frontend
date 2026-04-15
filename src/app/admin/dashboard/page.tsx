@@ -395,12 +395,12 @@ function SecaoDashboard({ stats, onNavigate }: { stats: Stats | null; onNavigate
     <div>
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginBottom: 28 }}>
-        <StatCard icon={<Store size={22} color="#16A34A" />}    label="Comércios ativos"   valor={stats?.total_comercios ?? '—'}    sub="+3 hoje"  cor="#16A34A" bg="#DCFCE7" />
-        <StatCard icon={<Users size={22} color="#3B82F6" />}    label="Comerciantes"        valor={stats?.total_comerciantes ?? '—'} sub="+1 hoje"  cor="#1D4ED8" bg="#DBEAFE" />
-        <StatCard icon={<TrendingUp size={22} color="#8B5CF6" />} label="Buscas hoje"       valor="529"                              sub="+12%"     cor="#6D28D9" bg="#EDE9FE" />
-        <StatCard icon={<DollarSign size={22} color="#F59E0B" />} label="Receita mensal"    valor="R$3.480"                          sub="+18%"     cor="#B45309" bg="#FEF3C7" />
-        <StatCard icon={<Activity size={22} color="#EC4899" />}  label="Leads hoje"         valor={stats?.leads_hoje ?? '—'}         sub=""         cor="#BE185D" bg="#FCE7F3" />
-        <StatCard icon={<Clock size={22} color="#F59E0B" />}     label="Aguardando aprovação" valor={stats?.pendentes ?? '—'}        sub=""         cor="#B45309" bg="#FEF3C7" />
+        <StatCard icon={<Store size={22} color="#16A34A" />}    label="Comércios ativos"     valor={stats?.total_comercios ?? '—'}    sub=""  cor="#16A34A" bg="#DCFCE7" />
+        <StatCard icon={<Users size={22} color="#3B82F6" />}    label="Comerciantes"          valor={stats?.total_comerciantes ?? '—'} sub=""  cor="#1D4ED8" bg="#DBEAFE" />
+        <StatCard icon={<Activity size={22} color="#EC4899" />} label="Leads hoje"            valor={stats?.leads_hoje ?? '—'}         sub=""  cor="#BE185D" bg="#FCE7F3" />
+        <StatCard icon={<TrendingUp size={22} color="#8B5CF6" />} label="Leads (30 dias)"     valor={stats?.leads_mes ?? '—'}          sub=""  cor="#6D28D9" bg="#EDE9FE" />
+        <StatCard icon={<DollarSign size={22} color="#F59E0B" />} label="Receita mensal"      valor="—"                                sub="em breve" cor="#B45309" bg="#FEF3C7" />
+        <StatCard icon={<Clock size={22} color="#F59E0B" />}     label="Aguardando aprovação" valor={stats?.pendentes ?? '—'}          sub=""  cor="#B45309" bg="#FEF3C7" />
       </div>
 
       {/* Alerta pendentes */}
@@ -488,10 +488,10 @@ function SecaoDashboard({ stats, onNavigate }: { stats: Stats | null; onNavigate
         <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 16, padding: 22 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
             <div>
-              <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 15, color: '#111827' }}>Buscas por dia</div>
+              <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 15, color: '#111827' }}>Leads por dia</div>
               <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#9CA3AF' }}>Últimos 7 dias</div>
             </div>
-            <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.4rem', color: '#16A34A' }}>529</span>
+            <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.4rem', color: '#16A34A' }}>{stats?.leads_mes ?? '—'}</span>
           </div>
           <MiniLineChart data={buscasSemana} />
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
