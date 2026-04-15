@@ -145,11 +145,20 @@ export default function AdminComerciantesPage() {
   const excluir = async () => {
     if (!confirmDelete) return
     setDeletando(true)
-    const r = await adminFetch(`/admin/comerciantes/${confirmDelete.id}`, { method: 'DELETE' })
-    setDeletando(false)
-    setConfirmDelete(null)
-    if (r.ok) carregarLista(busca, pagina)
-    else alert('Erro ao excluir')
+    try {
+      const r = await adminFetch(`/admin/comerciantes/${confirmDelete.id}`, { method: 'DELETE' })
+      setDeletando(false)
+      setConfirmDelete(null)
+      if (r.ok) {
+        carregarLista(busca, pagina)
+      } else {
+        const body = await r.json().catch(() => ({}))
+        alert('Erro ao excluir: ' + (body.erro || r.status))
+      }
+    } catch {
+      setDeletando(false)
+      alert('Erro de conexão ao excluir')
+    }
   }
 
   const f = (key: string, label: string, tipo: 'text' | 'email' | 'password' | 'select-status' | 'toggle' = 'text', placeholder = '') => {
