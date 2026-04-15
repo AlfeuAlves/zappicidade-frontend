@@ -70,7 +70,7 @@ const PLANOS = [
 
 // ── Step Indicator ─────────────────────────────────────────────
 function StepIndicator({ passo, total }: { passo: number; total: number }) {
-  const labels = ['Encontrar', 'Confirmar', 'Personalizar', 'Ativar']
+  const labels = ['Encontrar', 'Confirmar', 'Ativar']
   return (
     <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: 40 }}>
       {Array.from({ length: total }).map((_, i) => (
@@ -924,7 +924,7 @@ export default function OnboardingPage() {
           borderRadius: 28, padding: 'clamp(24px, 5vw, 40px)',
           boxShadow: '0 8px 40px rgba(31,41,55,0.08)',
         }}>
-          <StepIndicator passo={passo} total={4} />
+          <StepIndicator passo={passo} total={3} />
 
           {passo === 0 && <Passo1 onSelecionar={handleSelecionar} />}
           {passo === 1 && comercioSelecionado && (
@@ -937,8 +937,7 @@ export default function OnboardingPage() {
               <Passo2 comercio={comercioSelecionado} onConfirmar={handleVincular} onVoltar={() => { setComercioSelecionado(null); setPasso(0) }} carregando={vinculando} />
             </>
           )}
-          {passo === 2 && comercioSelecionado && <Passo3 comercio={comercioSelecionado} onContinuar={() => setPasso(3)} />}
-          {passo === 3 && <Passo4 onAtivar={handleAtivar} />}
+          {passo === 2 && <Passo4 onAtivar={handleAtivar} />}
         </div>
 
         {/* Footer */}
