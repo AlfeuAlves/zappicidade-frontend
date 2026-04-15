@@ -196,7 +196,7 @@ export default function AdminComerciosPage() {
     if (!selecionado) return
     setGerandoQr(true)
     try {
-      const r = await adminFetch(`/admin/comercios/${selecionado.id}/qrcode`, { method: 'POST' })
+      const r = await adminFetch(`/admin/comercios/${selecionado.id}/qrcode`, { method: 'POST', body: '{}' })
       const data = await r.json()
       if (r.ok) setQrcode(data.qrcode)
       else setErro(data.erro || 'Erro ao gerar QR Code')
