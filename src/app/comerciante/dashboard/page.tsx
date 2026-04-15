@@ -757,9 +757,16 @@ function SecaoCampanhas({ dados, onCriarAnuncio }: { dados: DashboardData | null
 // ── SecaoFaturamento ─────────────────────────────────────────────
 function SecaoFaturamento() {
   const planos = [
-    { nome: 'Basic', preco: 'R$79', periodo: '/mês', recursos: ['Perfil completo', 'Horários de funcionamento', 'QR Code personalizado', 'Analytics básico'], cor: '#3B82F6', bg: '#EFF6FF', destaque: false },
-    { nome: 'Pro', preco: 'R$179', periodo: '/mês', recursos: ['Tudo do Basic', 'Promoções e broadcast', 'Destaque nas buscas', 'Analytics avançado', 'IA de sugestões'], cor: '#16A34A', bg: '#F0FDF4', destaque: true },
-    { nome: 'Agência', preco: 'R$490', periodo: '/mês', recursos: ['Até 10 unidades', 'Painel unificado', 'Relatório PDF', 'Suporte prioritário'], cor: '#7C3AED', bg: '#F5F3FF', destaque: false },
+    {
+      nome: 'Basic', preco: 'R$0,00', periodo: '/mês',
+      recursos: ['Perfil básico do negócio', 'Aparece nas buscas do Zappi', 'Horários de funcionamento', 'QR Code básico'],
+      cor: '#3B82F6', bg: '#EFF6FF', destaque: false, btnLabel: 'Plano atual',
+    },
+    {
+      nome: 'Pro', preco: 'R$59,90', periodo: '/mês',
+      recursos: ['Tudo do Basic', 'Promoções e anúncios', 'Destaque nas buscas', 'QR Code rastreável', 'Analytics completo'],
+      cor: '#16A34A', bg: '#F0FDF4', destaque: true, btnLabel: 'Fazer upgrade',
+    },
   ]
   return (
     <div>
@@ -780,9 +787,9 @@ function SecaoFaturamento() {
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 15, color: '#111827' }}>
-            Plano atual: <span style={{ color: '#16A34A' }}>Público (Grátis)</span>
+            Plano atual: <span style={{ color: '#16A34A' }}>Basic (Grátis)</span>
           </div>
-          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#4B5563', margin: '4px 0 0' }}>Faça upgrade para desbloquear promoções, destaque e analytics avançado</p>
+          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#4B5563', margin: '4px 0 0' }}>Faça upgrade para Pro e desbloqueie promoções, destaque e analytics completo</p>
         </div>
         <div style={{ background: '#FEF9C3', border: '1.5px solid #FDE68A', borderRadius: 12, padding: '10px 16px', flexShrink: 0 }}>
           <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 13, color: '#854D0E', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -792,7 +799,7 @@ function SecaoFaturamento() {
       </div>
 
       {/* Cards de plano */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 18 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 18 }}>
         {planos.map(p => (
           <div key={p.nome} style={{
             background: p.destaque ? p.cor : 'white',
@@ -806,7 +813,7 @@ function SecaoFaturamento() {
             onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}>
             {p.destaque && (
               <div style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)', background: '#111827', color: 'white', fontSize: 11, fontWeight: 700, padding: '5px 16px', borderRadius: 999, whiteSpace: 'nowrap' }}>
-                ⭐ Mais popular
+                ⭐ Recomendado
               </div>
             )}
             <div>
@@ -827,14 +834,16 @@ function SecaoFaturamento() {
               ))}
             </div>
             <button style={{
-              width: '100%', padding: '14px', borderRadius: 14, border: 'none', cursor: 'pointer',
-              background: p.destaque ? 'rgba(255,255,255,0.2)' : p.cor,
-              color: 'white', fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 14,
+              width: '100%', padding: '14px', borderRadius: 14, border: 'none',
+              cursor: p.destaque ? 'pointer' : 'default',
+              background: p.destaque ? 'rgba(255,255,255,0.2)' : '#F1F5F9',
+              color: p.destaque ? 'white' : '#94A3B8',
+              fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 14,
               transition: 'all 0.2s',
             }}
-              onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
-              onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
-              Escolher {p.nome}
+              onMouseEnter={e => { if (p.destaque) e.currentTarget.style.opacity = '0.85' }}
+              onMouseLeave={e => { if (p.destaque) e.currentTarget.style.opacity = '1' }}>
+              {p.btnLabel}
             </button>
           </div>
         ))}
