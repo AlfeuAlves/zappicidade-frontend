@@ -1024,6 +1024,7 @@ export default function DashboardPage() {
   const [modalAnuncio, setModalAnuncio]     = useState(false)
   const [nomePerfil, setNomePerfil]         = useState('')
   const [isMobile, setIsMobile]             = useState(false)
+  const [toast, setToast]                   = useState<{ msg: string; tipo: 'sucesso' | 'erro' } | null>(null)
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768)
@@ -1046,6 +1047,17 @@ export default function DashboardPage() {
   }, [router])
 
   const sair = () => { limparSessao(); router.push('/comerciante/login') }
+
+  const mostrarToast = (msg: string, tipo: 'sucesso' | 'erro' = 'sucesso') => {
+    setToast({ msg, tipo })
+    setTimeout(() => setToast(null), 4000)
+  }
+
+  const recarregarDados = () => {
+    apiFetch<DashboardData>('/comerciante/dashboard')
+      .then(dash => setDados(dash))
+      .catch(() => {})
+  }
 
   if (!comerciante) return null
 
@@ -1260,13 +1272,32 @@ export default function DashboardPage() {
         </nav>
       )}
 
+      {/* Toast de feedback */}
+      {toast && (
+        <div style={{
+          position: 'fixed', bottom: isMobile ? 90 : 32, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 300, background: toast.tipo === 'sucesso' ? '#111827' : '#EF4444',
+          color: 'white', borderRadius: 16, padding: '14px 24px',
+          fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 14,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.25)', whiteSpace: 'nowrap',
+          display: 'flex', alignItems: 'center', gap: 10,
+          animation: 'slideUp 0.3s ease',
+        }}>
+          {toast.tipo === 'sucesso'
+            ? <Check size={18} color="#4ADE80" strokeWidth={3} />
+            : <AlertCircle size={18} color="white" />}
+          {toast.msg}
+        </div>
+      )}
+
       {/* Modais */}
-      {modalVender  && <ModalVenderAgora  onClose={() => setModalVender(false)}  onSalvar={() => setModalVender(false)} />}
+      {modalVender  && <ModalVenderAgora  onClose={() => setModalVender(false)}  onSalvar={() => { setModalVender(false); mostrarToast('⚡ Promoção ativada! Já aparece para clientes da cidade.'); recarregarDados() }} />}
       {modalAnuncio && <ModalCriarAnuncio onClose={() => setModalAnuncio(false)} />}
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg) } }
         @keyframes pulse { 0%, 100% { opacity: 1 } 50% { opacity: 0.5 } }
+        @keyframes slideUp { from { opacity: 0; transform: translateX(-50%) translateY(16px) } to { opacity: 1; transform: translateX(-50%) translateY(0) } }
       `}</style>
     </div>
   )
