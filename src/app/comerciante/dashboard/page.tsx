@@ -141,7 +141,7 @@ function ModalVenderAgora({ onClose, onSalvar }: { onClose: () => void; onSalvar
     try {
       await apiFetch('/comerciante/promocoes', {
         method: 'POST',
-        body: JSON.stringify({ titulo: produto, preco_de: precoNum, percentual_desconto: descNum || null, fim, tipo: 'venda_rapida' }),
+        body: JSON.stringify({ titulo: produto, preco_de: precoNum, preco_por: precoPor ?? null, percentual_desconto: descNum || null, fim, tipo: 'venda_rapida' }),
       })
       onSalvar({ sucesso: true, produto, preco: precoNum, desconto: descNum, duracao })
     } catch (err: any) {
