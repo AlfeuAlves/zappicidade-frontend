@@ -253,6 +253,117 @@ function Toggle({ label, desc, value, onChange }: { label: string; desc: string;
   )
 }
 
+// ── CardStatusBot ─────────────────────────────────────────────────
+interface BotStatus {
+  whatsapp_ok: boolean; whatsapp_status: string
+  ia_ok: boolean; ia_configurada: boolean
+  sessoes_ativas: number
+  ultimo_sucesso: string | null
+  ultimo_erro: { ts: string; tipo: string; status: number | null; message: string } | null
+  erros_ultima_hora: number
+}
+
+function CardStatusBot() {
+  const [status, setStatus] = useState<BotStatus | null>(null)
+  const [carregando, setCarregando] = useState(true)
+  const [ultimaVerif, setUltimaVerif] = useState<Date | null>(null)
+
+  const verificar = useCallback(async () => {
+    setCarregando(true)
+    try {
+      const data = await fetch(`${API_URL}/webhook/status`).then(r => r.json())
+      setStatus(data)
+      setUltimaVerif(new Date())
+    } catch {
+      setStatus(null)
+    } finally {
+      setCarregando(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    verificar()
+    const iv = setInterval(verificar, 2 * 60 * 1000)
+    return () => clearInterval(iv)
+  }, [verificar])
+
+  const temErroRecente = !!status?.ultimo_erro &&
+    (Date.now() - new Date(status.ultimo_erro.ts).getTime()) < 60 * 60_000
+  const botOk = !carregando && !!status?.ia_ok && !!status?.whatsapp_ok
+  const botErro = !carregando && (!!status && (!status.ia_ok || !status.whatsapp_ok))
+
+  const corBorda = botErro ? '#FECACA' : botOk ? '#BBF7D0' : '#E5E7EB'
+  const corIcone = botErro ? '#DC2626' : botOk ? '#16A34A' : '#9CA3AF'
+  const bgIcone  = botErro ? '#FEE2E2' : botOk ? '#DCFCE7' : '#F3F4F6'
+
+  return (
+    <div style={{ background: 'white', border: `1.5px solid ${corBorda}`, borderRadius: 16, padding: '18px 20px', marginBottom: 16, boxShadow: '0 2px 8px rgba(31,41,55,0.04)', transition: 'border-color 0.3s' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+        <div style={{ width: 40, height: 40, borderRadius: 12, background: bgIcone, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <Zap size={18} color={corIcone} />
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 14, color: '#111827' }}>Status do Bot</div>
+          <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: '#9CA3AF' }}>
+            {ultimaVerif ? `Verificado às ${ultimaVerif.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} · auto-refresh 2 min` : 'Verificando…'}
+          </div>
+        </div>
+        <button
+          onClick={verificar} disabled={carregando}
+          style={{ background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 8, padding: '6px 14px', cursor: carregando ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', gap: 6, color: '#6B7280', fontSize: 12, fontFamily: 'Inter, sans-serif', opacity: carregando ? 0.6 : 1 }}
+        >
+          <RefreshCw size={12} />
+          Verificar agora
+        </button>
+      </div>
+
+      {/* Indicadores */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+        {[
+          { label: 'WhatsApp', ok: status?.whatsapp_ok, valor: carregando ? '…' : status?.whatsapp_ok ? 'Conectado' : status?.whatsapp_status || 'Desconectado' },
+          { label: 'IA Claude', ok: status?.ia_ok,       valor: carregando ? '…' : status?.ia_ok ? 'Operacional' : !status?.ia_configurada ? 'Sem chave API' : 'Com falha' },
+          { label: 'Sessões',   ok: true,                valor: carregando ? '…' : `${status?.sessoes_ativas ?? 0} ativas`, cor: '#3B82F6' },
+        ].map(({ label, ok, valor, cor }) => (
+          <div key={label} style={{ background: '#F9FAFB', borderRadius: 10, padding: '10px 12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 4 }}>
+              <div style={{ width: 7, height: 7, borderRadius: '50%', background: cor || (ok ? '#16A34A' : '#DC2626'), flexShrink: 0 }} />
+              <span style={{ fontSize: 10, fontWeight: 700, color: '#9CA3AF', fontFamily: 'Inter, sans-serif', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</span>
+            </div>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#111827', fontFamily: 'Poppins, sans-serif' }}>{valor}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Último erro */}
+      {status?.ultimo_erro && (
+        <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, padding: '10px 14px', marginTop: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
+            <AlertTriangle size={12} color="#DC2626" />
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#DC2626', fontFamily: 'Poppins, sans-serif' }}>
+              Último erro — {new Date(status.ultimo_erro.ts).toLocaleString('pt-BR', { timeZone: 'America/Belem', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+              {status.erros_ultima_hora > 0 && ` · ${status.erros_ultima_hora}× na última hora`}
+            </span>
+          </div>
+          <div style={{ fontSize: 12, color: '#B91C1C', fontFamily: 'Inter, sans-serif', wordBreak: 'break-all' }}>
+            [{status.ultimo_erro.tipo}{status.ultimo_erro.status ? ` ${status.ultimo_erro.status}` : ''}] {status.ultimo_erro.message}
+          </div>
+        </div>
+      )}
+
+      {/* Último sucesso */}
+      {status?.ultimo_sucesso && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10 }}>
+          <CheckCircle2 size={12} color="#16A34A" />
+          <span style={{ fontSize: 11, color: '#9CA3AF', fontFamily: 'Inter, sans-serif' }}>
+            Última resposta com sucesso: {new Date(status.ultimo_sucesso).toLocaleString('pt-BR', { timeZone: 'America/Belem', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Seção Dashboard ──────────────────────────────────────────────
 function SecaoDashboard({ stats, onNavigate }: { stats: Stats | null; onNavigate: (s: Secao) => void }) {
   const buscasSemana = [42, 67, 55, 89, 103, 78, 95]
@@ -304,6 +415,9 @@ function SecaoDashboard({ stats, onNavigate }: { stats: Stats | null; onNavigate
           </button>
         </div>
       )}
+
+      {/* Status do Bot */}
+      <CardStatusBot />
 
       {/* Atalhos rápidos */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 24 }}>
