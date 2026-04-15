@@ -122,7 +122,7 @@ function KpiCard({ icon, label, valor, sub, cor, bg, trend, prefix = '' }: {
 }
 
 // ── Modal VENDER AGORA ───────────────────────────────────────────
-function ModalVenderAgora({ onClose, onSalvar }: { onClose: () => void; onSalvar: (result: { sucesso: boolean; produto?: string; preco?: number; desconto?: number; duracao?: string }) => void }) {
+function ModalVenderAgora({ onClose, onSalvar }: { onClose: () => void; onSalvar: (result: { sucesso: boolean; produto?: string; preco?: number; desconto?: number; duracao?: string; erro?: string }) => void }) {
   const [produto, setProduto] = useState('')
   const [preco,   setPreco]   = useState('')
   const [desconto, setDesconto] = useState('')
