@@ -144,8 +144,8 @@ function ModalVenderAgora({ onClose, onSalvar }: { onClose: () => void; onSalvar
         body: JSON.stringify({ titulo: produto, preco_de: precoNum, percentual_desconto: descNum || null, fim, tipo: 'venda_rapida' }),
       })
       onSalvar({ sucesso: true, produto, preco: precoNum, desconto: descNum, duracao })
-    } catch {
-      onSalvar({ sucesso: false })
+    } catch (err: any) {
+      onSalvar({ sucesso: false, erro: err.message })
     } finally { setSalvando(false) }
   }
 
@@ -1318,7 +1318,7 @@ export default function DashboardPage() {
       )}
 
       {/* Modais */}
-      {modalVender  && <ModalVenderAgora  onClose={() => setModalVender(false)}  onSalvar={(r: any) => { setModalVender(false); if (r?.sucesso) { mostrarToast('⚡ Promoção ativada! Já aparece para clientes da cidade.'); recarregarDados() } else { mostrarToast('Erro ao ativar promoção. Tente novamente.', 'erro') } }} />}
+      {modalVender  && <ModalVenderAgora  onClose={() => setModalVender(false)}  onSalvar={(r: any) => { setModalVender(false); if (r?.sucesso) { mostrarToast('⚡ Promoção ativada! Já aparece para clientes da cidade.'); recarregarDados() } else { mostrarToast(r?.erro || 'Erro ao ativar promoção. Tente novamente.', 'erro') } }} />}
       {modalAnuncio && <ModalCriarAnuncio onClose={() => setModalAnuncio(false)} />}
 
       <style>{`
