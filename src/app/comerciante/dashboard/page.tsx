@@ -122,7 +122,7 @@ function KpiCard({ icon, label, valor, sub, cor, bg, trend, prefix = '' }: {
 }
 
 // ── Modal VENDER AGORA ───────────────────────────────────────────
-function ModalVenderAgora({ onClose, onSalvar }: { onClose: () => void; onSalvar: (dados: any) => void }) {
+function ModalVenderAgora({ onClose, onSalvar }: { onClose: () => void; onSalvar: (result: { sucesso: boolean; produto?: string; preco?: number; desconto?: number; duracao?: string }) => void }) {
   const [produto, setProduto] = useState('')
   const [preco,   setPreco]   = useState('')
   const [desconto, setDesconto] = useState('')
@@ -143,8 +143,10 @@ function ModalVenderAgora({ onClose, onSalvar }: { onClose: () => void; onSalvar
         method: 'POST',
         body: JSON.stringify({ titulo: produto, preco_de: precoNum, percentual_desconto: descNum || null, fim, tipo: 'venda_rapida' }),
       })
-      onSalvar({ produto, preco: precoNum, desconto: descNum, duracao })
-    } catch { } finally { setSalvando(false) }
+      onSalvar({ sucesso: true, produto, preco: precoNum, desconto: descNum, duracao })
+    } catch {
+      onSalvar({ sucesso: false })
+    } finally { setSalvando(false) }
   }
 
   const duracoes = ['1h', '2h', '4h', '8h', '24h']
@@ -1291,7 +1293,7 @@ export default function DashboardPage() {
       )}
 
       {/* Modais */}
-      {modalVender  && <ModalVenderAgora  onClose={() => setModalVender(false)}  onSalvar={() => { setModalVender(false); mostrarToast('⚡ Promoção ativada! Já aparece para clientes da cidade.'); recarregarDados() }} />}
+      {modalVender  && <ModalVenderAgora  onClose={() => setModalVender(false)}  onSalvar={(r: any) => { setModalVender(false); if (r?.sucesso) { mostrarToast('⚡ Promoção ativada! Já aparece para clientes da cidade.'); recarregarDados() } else { mostrarToast('Erro ao ativar promoção. Tente novamente.', 'erro') } }} />}
       {modalAnuncio && <ModalCriarAnuncio onClose={() => setModalAnuncio(false)} />}
 
       <style>{`
