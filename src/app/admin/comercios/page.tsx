@@ -350,7 +350,7 @@ export default function AdminComerciosPage() {
             style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #E5E7EB', borderRadius: 10, fontSize: 14, fontFamily: 'Inter, sans-serif', background: 'white', color: '#111827', outline: 'none' }}
           >
             <option value="">— sem categoria —</option>
-            {categorias.map(c => <option key={c.id} value={c.id}>{c.icone} {c.nome}</option>)}
+            {[...categorias].sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(c => <option key={c.id} value={c.id}>{c.icone} {c.nome}</option>)}
           </select>
         </div>
       )
