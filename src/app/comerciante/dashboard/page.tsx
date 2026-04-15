@@ -395,8 +395,8 @@ function ModalCriarAnuncio({ onClose }: { onClose: () => void }) {
 }
 
 // ── SecaoDashboard ───────────────────────────────────────────────
-function SecaoDashboard({ dados, comerciante, onCriarAnuncio, onVenderAgora }: {
-  dados: DashboardData | null; comerciante: Comerciante
+function SecaoDashboard({ dados, comerciante, aprovado, onCriarAnuncio, onVenderAgora }: {
+  dados: DashboardData | null; comerciante: Comerciante; aprovado: boolean
   onCriarAnuncio: () => void; onVenderAgora: () => void
 }) {
   const m = dados?.metricas
@@ -673,7 +673,7 @@ function SecaoDashboard({ dados, comerciante, onCriarAnuncio, onVenderAgora }: {
 }
 
 // ── SecaoCampanhas ───────────────────────────────────────────────
-function SecaoCampanhas({ dados, onCriarAnuncio }: { dados: DashboardData | null; onCriarAnuncio: () => void }) {
+function SecaoCampanhas({ dados, aprovado, onCriarAnuncio }: { dados: DashboardData | null; aprovado: boolean; onCriarAnuncio: () => void }) {
   const promocoes = dados?.promocoes_ativas || []
   return (
     <div>
@@ -1027,6 +1027,7 @@ export default function DashboardPage() {
   const [nomePerfil, setNomePerfil]         = useState('')
   const [isMobile, setIsMobile]             = useState(false)
   const [toast, setToast]                   = useState<{ msg: string; tipo: 'sucesso' | 'erro' } | null>(null)
+  const [statusVerificacao, setStatusVerificacao] = useState<string | null>(null)
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768)
@@ -1043,7 +1044,12 @@ export default function DashboardPage() {
     setNomePerfil(sessao.comerciante.nome || sessao.comerciante.email?.split('@')[0] || '')
 
     Promise.all([apiFetch<DashboardData>('/comerciante/dashboard'), apiFetch<any>('/comerciante/perfil')])
-      .then(([dash]) => setDados(dash))
+      .then(([dash, perfil]) => {
+        setDados(dash)
+        if (perfil?.comerciante?.status_verificacao) {
+          setStatusVerificacao(perfil.comerciante.status_verificacao)
+        }
+      })
       .catch(() => {})
       .finally(() => setCarregando(false))
   }, [router])
@@ -1112,7 +1118,7 @@ export default function DashboardPage() {
 
         {/* Botão Criar Anúncio */}
         <div style={{ padding: '14px 14px 6px' }}>
-          <button onClick={() => setModalAnuncio(true)} style={{
+          <button onClick={() => { if (statusVerificacao !== 'aprovado') { mostrarToast('Aguarde a aprovação da sua conta pelo administrador.', 'erro'); return } setModalAnuncio(true) }} style={{
             width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
             background: '#16A34A', color: 'white', border: 'none', borderRadius: 14,
             padding: '11px 0', fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 13,
@@ -1191,7 +1197,7 @@ export default function DashboardPage() {
             <div style={{ flex: 1 }} />
 
             {/* VENDER AGORA — ícone no mobile, botão completo no desktop */}
-            <button onClick={() => setModalVender(true)} style={{
+            <button onClick={() => { if (statusVerificacao !== 'aprovado') { mostrarToast('Aguarde a aprovação da sua conta pelo administrador.', 'erro'); return } setModalVender(true) }} style={{
               display: 'flex', alignItems: 'center', gap: isMobile ? 0 : 8, background: '#FACC15',
               color: '#111827', border: 'none', borderRadius: 12,
               padding: isMobile ? '9px 12px' : '10px 22px',
@@ -1216,6 +1222,25 @@ export default function DashboardPage() {
           </div>
         </header>
 
+        {/* Banner — conta pendente de aprovação */}
+        {statusVerificacao && statusVerificacao !== 'aprovado' && (
+          <div style={{
+            background: '#FFFBEB', borderBottom: '1.5px solid #FDE68A',
+            padding: isMobile ? '12px 16px' : '12px 32px',
+            display: 'flex', alignItems: 'center', gap: 12,
+          }}>
+            <AlertCircle size={18} color="#D97706" style={{ flexShrink: 0 }} />
+            <div style={{ flex: 1 }}>
+              <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 13, color: '#92400E' }}>
+                Conta aguardando aprovação.{' '}
+              </span>
+              <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#92400E' }}>
+                Promoções e anúncios ficam disponíveis após o administrador aprovar seu vínculo com o comércio.
+              </span>
+            </div>
+          </div>
+        )}
+
         {/* Loading */}
         {carregando ? (
           <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
@@ -1226,8 +1251,8 @@ export default function DashboardPage() {
           </div>
         ) : (
           <main style={{ flex: 1, padding: isMobile ? '16px 12px 90px' : '32px', overflowY: 'auto' }}>
-            {seção === 'dashboard'   && <SecaoDashboard dados={dados} comerciante={comerciante} onCriarAnuncio={() => setModalAnuncio(true)} onVenderAgora={() => setModalVender(true)} />}
-            {seção === 'campanhas'   && <SecaoCampanhas dados={dados} onCriarAnuncio={() => setModalAnuncio(true)} />}
+            {seção === 'dashboard'   && <SecaoDashboard dados={dados} comerciante={comerciante} aprovado={statusVerificacao === 'aprovado'} onCriarAnuncio={() => { if (statusVerificacao !== 'aprovado') { mostrarToast('Aguarde a aprovação da sua conta pelo administrador.', 'erro'); return } setModalAnuncio(true) }} onVenderAgora={() => { if (statusVerificacao !== 'aprovado') { mostrarToast('Aguarde a aprovação da sua conta pelo administrador.', 'erro'); return } setModalVender(true) }} />}
+            {seção === 'campanhas'   && <SecaoCampanhas dados={dados} aprovado={statusVerificacao === 'aprovado'} onCriarAnuncio={() => { if (statusVerificacao !== 'aprovado') { mostrarToast('Aguarde a aprovação da sua conta pelo administrador.', 'erro'); return } setModalAnuncio(true) }} />}
             {seção === 'perfil'      && <SecaoMeuNegocio />}
             {seção === 'faturamento' && <SecaoFaturamento />}
             {seção === 'leads' && (
