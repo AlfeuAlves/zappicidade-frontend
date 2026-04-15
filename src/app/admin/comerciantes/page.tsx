@@ -146,7 +146,7 @@ export default function AdminComerciantesPage() {
     if (!confirmDelete) return
     setDeletando(true)
     try {
-      const r = await adminFetch(`/admin/comerciantes/${confirmDelete.id}`, { method: 'DELETE' })
+      const r = await adminFetch(`/admin/comerciantes/${confirmDelete.id}/excluir`, { method: 'POST' })
       setDeletando(false)
       setConfirmDelete(null)
       if (r.ok) {
