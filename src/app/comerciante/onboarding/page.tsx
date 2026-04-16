@@ -680,10 +680,16 @@ function Passo3({ comercio, onContinuar }: { comercio: Comercio; onContinuar: ()
 }
 
 // ── Passo 4: Escolher plano ────────────────────────────────────
-function Passo4({ onAtivar }: { onAtivar: (plano: string) => void }) {
+function Passo4({ onAtivar, carregando }: { onAtivar: (plano: string) => void; carregando?: boolean }) {
   return (
-    <div style={{ animation: 'fadeUp 0.4s ease forwards' }}>
+    <div style={{ animation: 'fadeUp 0.4s ease forwards', position: 'relative' }}>
       <PlanosPrecos onSelecionar={onAtivar} modoOnboarding />
+      {carregando && (
+        <div style={{ position: 'absolute', inset: 0, background: 'rgba(249,250,251,0.85)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', borderRadius: 20, backdropFilter: 'blur(4px)', zIndex: 10 }}>
+          <div style={{ width: 48, height: 48, border: '4px solid #DCFCE7', borderTop: '4px solid #16A34A', borderRadius: '50%', animation: 'spin 0.8s linear infinite', marginBottom: 16 }} />
+          <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600, fontSize: 15, color: '#16A34A', margin: 0 }}>Preparando pagamento...</p>
+        </div>
+      )}
     </div>
   )
 }
@@ -715,7 +721,29 @@ export default function OnboardingPage() {
     finally { setVinculando(false) }
   }
 
-  const handleAtivar = (_plano: string) => { router.push('/comerciante/dashboard?setup=1') }
+  const [processandoPagamento, setProcessandoPagamento] = useState(false)
+
+  const handleAtivar = async (planoId: string) => {
+    if (planoId === 'basico') {
+      router.push('/comerciante/dashboard?setup=1')
+      return
+    }
+    setProcessandoPagamento(true)
+    try {
+      const r = await apiFetch<{ url: string; gratuito?: boolean }>('/pagamento/checkout', {
+        method: 'POST',
+        body: JSON.stringify({ plano_id: planoId }),
+      })
+      if (r.gratuito || !r.url) {
+        router.push('/comerciante/dashboard?setup=1')
+      } else {
+        window.location.href = r.url
+      }
+    } catch (err: any) {
+      alert('Erro ao iniciar pagamento: ' + err.message)
+      setProcessandoPagamento(false)
+    }
+  }
 
   return (
     <div style={{
@@ -763,7 +791,7 @@ export default function OnboardingPage() {
               <Passo2 comercio={comercioSelecionado} onConfirmar={handleVincular} onVoltar={() => { setComercioSelecionado(null); setPasso(0) }} carregando={vinculando} />
             </>
           )}
-          {passo === 2 && <Passo4 onAtivar={handleAtivar} />}
+          {passo === 2 && <Passo4 onAtivar={handleAtivar} carregando={processandoPagamento} />}
         </div>
 
         {/* Footer */}
