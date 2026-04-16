@@ -105,6 +105,21 @@ export default function PaginaComercio({ comercio }: Props) {
           </button>
         </div>
 
+        {/* ── GALERIA (PRO) ── */}
+        {(comercio as any).fotos?.length > 0 && (
+          <div style={{ overflowX: 'auto', display: 'flex', gap: 8, padding: '10px 16px', background: '#F9FAFB', borderBottom: '1px solid #F3F4F6' }}>
+            {((comercio as any).fotos as string[]).map((url: string, i: number) => (
+              <img
+                key={i}
+                src={url}
+                alt={`${comercio.nome} foto ${i + 1}`}
+                style={{ height: 90, width: 140, objectFit: 'cover', borderRadius: 12, flexShrink: 0, cursor: 'pointer', border: '1.5px solid #E5E7EB' }}
+                onClick={() => window.open(url, '_blank')}
+              />
+            ))}
+          </div>
+        )}
+
         {/* ── CARD PRINCIPAL ── */}
         <div style={{ maxWidth: 680, margin: '0 auto', padding: '0 16px' }}>
 
