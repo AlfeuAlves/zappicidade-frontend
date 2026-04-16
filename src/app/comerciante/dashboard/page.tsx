@@ -677,7 +677,7 @@ function SecaoDashboard({ dados, comerciante, aprovado, onCriarAnuncio, onVender
 const DESTAQUE_ASPECT = 16 / 9
 const DESTAQUE_OUTPUT_W = 1280
 
-function DestaqueTopForm({ isPro, onFechar }: { isPro: boolean; onFechar: () => void }) {
+function DestaqueTopForm({ isPro, onFechar }: { isPro: boolean; onFechar?: () => void }) {
   const [texto, setTexto] = useState('')
   const [publico, setPublico] = useState<'cidade' | 'bairro'>('cidade')
   const [imagem, setImagem] = useState<string | null>(null)       // base64 final (recortado)
@@ -774,9 +774,11 @@ function DestaqueTopForm({ isPro, onFechar }: { isPro: boolean; onFechar: () => 
             <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>Mensagem push no WhatsApp dos clientes</div>
           </div>
         </div>
-        <button onClick={onFechar} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, padding: 8, cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-          <X size={18} color="white" />
-        </button>
+        {onFechar && (
+          <button onClick={onFechar} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, padding: 8, cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+            <X size={18} color="white" />
+          </button>
+        )}
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
@@ -1039,6 +1041,56 @@ interface Assinatura {
   valor: number
   inicio: string
   fim: string | null
+}
+
+// ── SecaoDestaqueTop ─────────────────────────────────────────────
+function SecaoDestaqueTop() {
+  const [isPro, setIsPro] = useState(false)
+  const [carregando, setCarregando] = useState(true)
+
+  useEffect(() => {
+    const carregar = async () => {
+      try {
+        const res = await apiFetch('/pagamento/status') as any
+        const assinatura = res?.assinatura
+        setIsPro(assinatura?.status === 'ativa')
+      } catch {
+        setIsPro(false)
+      } finally {
+        setCarregando(false)
+      }
+    }
+    carregar()
+  }, [])
+
+  if (carregando) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 200 }}>
+        <Loader2 size={28} color="#16A34A" style={{ animation: 'spin 1s linear infinite' }} />
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ maxWidth: 900 }}>
+      {/* Explicação */}
+      <div style={{ background: 'linear-gradient(135deg, #111827, #1F2937)', borderRadius: 20, padding: '24px 28px', marginBottom: 28, display: 'flex', alignItems: 'center', gap: 20 }}>
+        <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <Megaphone size={26} color="white" />
+        </div>
+        <div>
+          <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: 18, color: 'white', marginBottom: 4 }}>
+            O que é o Destaque TOP?
+          </div>
+          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: 'rgba(255,255,255,0.75)', margin: 0, lineHeight: 1.6 }}>
+            Envie sua promoção ou mensagem diretamente no WhatsApp dos clientes que autorizaram receber novidades do seu negócio. É a forma mais direta de alcançar quem já tem interesse.
+          </p>
+        </div>
+      </div>
+
+      <DestaqueTopForm isPro={isPro} />
+    </div>
+  )
 }
 
 const PLANO_INFO: Record<string, { label: string; preco: string; periodo: string; recursos: string[] }> = {
@@ -1624,15 +1676,17 @@ export default function DashboardPage() {
   if (!comerciante) return null
 
   const navItems = [
-    { id: 'dashboard',   icon: <LayoutDashboard size={18} />, label: 'Visão Geral' },
-    { id: 'campanhas',   icon: <Megaphone size={18} />,       label: 'Campanhas' },
-    { id: 'perfil',      icon: <Store size={18} />,           label: 'Meu Negócio' },
-    { id: 'leads',       icon: <Users size={18} />,           label: 'Clientes' },
-    { id: 'faturamento', icon: <CreditCard size={18} />,      label: 'Faturamento' },
+    { id: 'dashboard',    icon: <LayoutDashboard size={18} />, label: 'Visão Geral' },
+    { id: 'campanhas',    icon: <Megaphone size={18} />,       label: 'Campanhas' },
+    { id: 'destaque_top', icon: <Zap size={18} />,             label: 'Destaque TOP', badge: 'PRO' },
+    { id: 'perfil',       icon: <Store size={18} />,           label: 'Meu Negócio' },
+    { id: 'leads',        icon: <Users size={18} />,           label: 'Clientes' },
+    { id: 'faturamento',  icon: <CreditCard size={18} />,      label: 'Faturamento' },
   ]
 
   const titulos: Record<string, string> = {
     dashboard: 'Visão Geral', campanhas: 'Campanhas & Anúncios',
+    destaque_top: 'Destaque TOP',
     perfil: 'Meu Negócio', leads: 'Clientes', faturamento: 'Faturamento',
   }
 
@@ -1698,7 +1752,13 @@ export default function DashboardPage() {
             }}
               onMouseEnter={e => { if (seção !== item.id) { e.currentTarget.style.background = '#F8FAFC'; e.currentTarget.style.color = '#374151' } }}
               onMouseLeave={e => { if (seção !== item.id) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#64748B' } }}>
-              {item.icon} {item.label}
+              {item.icon}
+              <span style={{ flex: 1 }}>{item.label}</span>
+              {'badge' in item && item.badge && (
+                <span style={{ background: '#16A34A', color: 'white', fontSize: 9, fontWeight: 800, padding: '2px 7px', borderRadius: 999, fontFamily: 'Poppins, sans-serif', letterSpacing: '0.04em' }}>
+                  {item.badge}
+                </span>
+              )}
             </button>
           ))}
         </nav>
@@ -1806,8 +1866,9 @@ export default function DashboardPage() {
         ) : (
           <main style={{ flex: 1, padding: isMobile ? '16px 12px 90px' : '32px', overflowY: 'auto' }}>
             {seção === 'dashboard'   && <SecaoDashboard dados={dados} comerciante={comerciante} aprovado={statusVerificacao === 'aprovado'} onCriarAnuncio={() => { if (statusVerificacao !== 'aprovado') { mostrarToast('Aguarde a aprovação da sua conta pelo administrador.', 'erro'); return } setModalAnuncio(true) }} onVenderAgora={() => { if (statusVerificacao !== 'aprovado') { mostrarToast('Aguarde a aprovação da sua conta pelo administrador.', 'erro'); return } setModalVender(true) }} />}
-            {seção === 'campanhas'   && <SecaoCampanhas dados={dados} aprovado={statusVerificacao === 'aprovado'} onCriarAnuncio={() => { if (statusVerificacao !== 'aprovado') { mostrarToast('Aguarde a aprovação da sua conta pelo administrador.', 'erro'); return } setModalAnuncio(true) }} />}
-            {seção === 'perfil'      && <SecaoMeuNegocio />}
+            {seção === 'campanhas'    && <SecaoCampanhas dados={dados} aprovado={statusVerificacao === 'aprovado'} onCriarAnuncio={() => { if (statusVerificacao !== 'aprovado') { mostrarToast('Aguarde a aprovação da sua conta pelo administrador.', 'erro'); return } setModalAnuncio(true) }} />}
+            {seção === 'destaque_top' && <SecaoDestaqueTop />}
+            {seção === 'perfil'       && <SecaoMeuNegocio />}
             {seção === 'faturamento' && <SecaoFaturamento />}
             {seção === 'leads' && (
               <div style={{ background: 'white', border: '2px dashed #E5E7EB', borderRadius: 24, padding: '64px 40px', textAlign: 'center' }}>
