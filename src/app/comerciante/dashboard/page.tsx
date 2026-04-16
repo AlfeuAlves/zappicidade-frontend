@@ -11,7 +11,7 @@ import {
   Megaphone, Brain, CreditCard, Star, AlertCircle, ArrowRight,
   Sparkles, X, ChevronLeft, Image as ImageIcon, Percent,
   MousePointerClick, PauseCircle, Edit2, PlayCircle, Target,
-  TrendingUp as Trend, BarChart3, Lightbulb, Crown,
+  TrendingUp as Trend, BarChart3, Lightbulb, Crown, Move,
 } from 'lucide-react'
 import { obterSessao, limparSessao, apiFetch, type Comerciante } from '@/lib/auth'
 import { api } from '@/lib/api'
@@ -673,10 +673,16 @@ function SecaoDashboard({ dados, comerciante, aprovado, onCriarAnuncio, onVender
 }
 
 // ── DestaqueTopForm ──────────────────────────────────────────────
+// Proporção da imagem do Destaque TOP: 16:9 (padrão WhatsApp/social)
+const DESTAQUE_ASPECT = 16 / 9
+const DESTAQUE_OUTPUT_W = 1280
+
 function DestaqueTopForm({ isPro, onFechar }: { isPro: boolean; onFechar: () => void }) {
   const [texto, setTexto] = useState('')
   const [publico, setPublico] = useState<'cidade' | 'bairro'>('cidade')
-  const [imagem, setImagem] = useState<string | null>(null)
+  const [imagem, setImagem] = useState<string | null>(null)       // base64 final (recortado)
+  const [srcCrop, setSrcCrop] = useState<string | null>(null)     // src original para o modal de crop
+  const [imagemDims, setImagemDims] = useState<{ w: number; h: number } | null>(null)
   const [enviando, setEnviando] = useState(false)
   const [enviado, setEnviado] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -685,8 +691,19 @@ function DestaqueTopForm({ isPro, onFechar }: { isPro: boolean; onFechar: () => 
     const file = e.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = ev => setImagem(ev.target?.result as string)
+    reader.onload = ev => setSrcCrop(ev.target?.result as string) // abre modal de crop
     reader.readAsDataURL(file)
+    // limpa o input para permitir re-selecionar o mesmo arquivo
+    e.target.value = ''
+  }
+
+  const handleCropConfirm = (croppedBase64: string) => {
+    setImagem(croppedBase64)
+    setSrcCrop(null)
+    // lê dimensões reais do canvas gerado
+    const img = new window.Image()
+    img.onload = () => setImagemDims({ w: img.naturalWidth, h: img.naturalHeight })
+    img.src = croppedBase64
   }
 
   const handleEnviar = async () => {
@@ -738,6 +755,18 @@ function DestaqueTopForm({ isPro, onFechar }: { isPro: boolean; onFechar: () => 
   }
 
   return (
+    <>
+      {/* Modal de recorte — abre quando srcCrop está definido */}
+      {srcCrop && (
+        <ImageCropModal
+          src={srcCrop}
+          aspectRatio={DESTAQUE_ASPECT}
+          outputWidth={DESTAQUE_OUTPUT_W}
+          onConfirm={handleCropConfirm}
+          onClose={() => setSrcCrop(null)}
+        />
+      )}
+
     <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 24, overflow: 'hidden' }}>
       {/* Header do form */}
       <div style={{ background: 'linear-gradient(135deg, #111827, #1F2937)', padding: '20px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -762,22 +791,36 @@ function DestaqueTopForm({ isPro, onFechar }: { isPro: boolean; onFechar: () => 
           {/* Upload de imagem */}
           <div style={{ marginBottom: 24 }}>
             <label style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 13, color: '#374151', display: 'block', marginBottom: 10 }}>
-              Imagem <span style={{ fontWeight: 400, color: '#9CA3AF', fontSize: 12 }}>(opcional)</span>
+              Imagem <span style={{ fontWeight: 400, color: '#9CA3AF', fontSize: 12 }}>(opcional · 16:9 · {DESTAQUE_OUTPUT_W}×{Math.round(DESTAQUE_OUTPUT_W / DESTAQUE_ASPECT)}px)</span>
             </label>
             <input ref={fileRef} type="file" accept="image/*" onChange={handleImagem} style={{ display: 'none' }} />
             {imagem ? (
               <div style={{ position: 'relative' }}>
-                <img src={imagem} alt="preview" style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 14, border: '1.5px solid #E5E7EB' }} />
-                <button onClick={() => setImagem(null)} style={{ position: 'absolute', top: 8, right: 8, background: '#111827cc', border: 'none', borderRadius: 8, padding: '4px 8px', cursor: 'pointer', color: 'white', fontSize: 11, fontWeight: 700 }}>
-                  Remover
-                </button>
+                <img src={imagem} alt="preview" style={{ width: '100%', aspectRatio: `${DESTAQUE_ASPECT}`, objectFit: 'cover', borderRadius: 14, border: '1.5px solid #E5E7EB', display: 'block' }} />
+                {/* Dimensões no canto inferior esquerdo */}
+                {imagemDims && (
+                  <div style={{ position: 'absolute', bottom: 8, left: 8, background: 'rgba(0,0,0,0.6)', borderRadius: 6, padding: '3px 8px', display: 'flex', alignItems: 'center', gap: 4 }}>
+                    <ImageIcon size={10} color="rgba(255,255,255,0.8)" />
+                    <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 10, color: 'white', fontWeight: 600 }}>{imagemDims.w}×{imagemDims.h}px</span>
+                  </div>
+                )}
+                {/* Botões no canto superior direito */}
+                <div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 6 }}>
+                  <button onClick={() => { setSrcCrop(imagem); setImagem(null); setImagemDims(null) }} style={{ background: 'rgba(17,24,39,0.75)', border: 'none', borderRadius: 8, padding: '4px 9px', cursor: 'pointer', color: 'white', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4, backdropFilter: 'blur(4px)' }}>
+                    <Move size={11} /> Ajustar
+                  </button>
+                  <button onClick={() => { setImagem(null); setImagemDims(null) }} style={{ background: 'rgba(239,68,68,0.8)', border: 'none', borderRadius: 8, padding: '4px 9px', cursor: 'pointer', color: 'white', fontSize: 11, fontWeight: 700, backdropFilter: 'blur(4px)' }}>
+                    Remover
+                  </button>
+                </div>
               </div>
             ) : (
-              <button onClick={() => fileRef.current?.click()} style={{ width: '100%', height: 100, border: '2px dashed #D1D5DB', borderRadius: 14, background: '#F9FAFB', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.15s' }}
+              <button onClick={() => fileRef.current?.click()} style={{ width: '100%', aspectRatio: `${DESTAQUE_ASPECT}`, border: '2px dashed #D1D5DB', borderRadius: 14, background: '#F9FAFB', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.15s' }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = '#16A34A'; e.currentTarget.style.background = '#F0FDF4' }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = '#D1D5DB'; e.currentTarget.style.background = '#F9FAFB' }}>
                 <ImageIcon size={24} color="#9CA3AF" />
                 <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#9CA3AF' }}>Clique para adicionar imagem</span>
+                <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: '#D1D5DB' }}>16:9 · {DESTAQUE_OUTPUT_W}×{Math.round(DESTAQUE_OUTPUT_W / DESTAQUE_ASPECT)}px</span>
               </button>
             )}
           </div>
@@ -858,6 +901,7 @@ function DestaqueTopForm({ isPro, onFechar }: { isPro: boolean; onFechar: () => 
         </div>
       </div>
     </div>
+    </>
   )
 }
 
