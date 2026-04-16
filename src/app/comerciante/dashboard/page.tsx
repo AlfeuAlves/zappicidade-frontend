@@ -706,17 +706,20 @@ function DestaqueTopForm({ isPro, onFechar }: { isPro: boolean; onFechar: () => 
     img.src = croppedBase64
   }
 
+  const [erro, setErro] = useState<string | null>(null)
+
   const handleEnviar = async () => {
     if (!texto.trim()) return
     setEnviando(true)
+    setErro(null)
     try {
-      await apiFetch('/comerciante/broadcast', {
+      await apiFetch('/comerciante/promocoes/broadcast', {
         method: 'POST',
         body: JSON.stringify({ texto, publico, imagem }),
       })
       setEnviado(true)
-    } catch {
-      // erro silencioso por ora
+    } catch (e: any) {
+      setErro(e?.message || 'Erro ao enviar. Tente novamente.')
     } finally {
       setEnviando(false)
     }
@@ -854,6 +857,12 @@ function DestaqueTopForm({ isPro, onFechar }: { isPro: boolean; onFechar: () => 
             </div>
           </div>
 
+          {erro && (
+            <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, padding: '10px 14px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <AlertCircle size={15} color="#EF4444" />
+              <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#DC2626' }}>{erro}</span>
+            </div>
+          )}
           <button onClick={handleEnviar} disabled={!texto.trim() || enviando} style={{ width: '100%', padding: '14px', background: texto.trim() ? 'linear-gradient(135deg, #16A34A, #15803D)' : '#E5E7EB', color: texto.trim() ? 'white' : '#9CA3AF', border: 'none', borderRadius: 14, fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 15, cursor: texto.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: texto.trim() ? '0 4px 16px rgba(22,163,74,0.35)' : 'none', transition: 'all 0.2s' }}>
             {enviando ? <><Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> Enviando...</> : <><Megaphone size={18} /> Enviar Destaque TOP</>}
           </button>
