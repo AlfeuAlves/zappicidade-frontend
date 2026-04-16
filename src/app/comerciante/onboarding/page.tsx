@@ -722,17 +722,29 @@ export default function OnboardingPage() {
   }
 
   const [processandoPagamento, setProcessandoPagamento] = useState(false)
+  const [modalCpf, setModalCpf] = useState<{ planoId: string } | null>(null)
+  const [cpf, setCpf] = useState('')
+  const [erroCpf, setErroCpf] = useState('')
 
-  const handleAtivar = async (planoId: string) => {
-    if (planoId === 'basico') {
-      router.push('/comerciante/dashboard?setup=1')
-      return
-    }
+  const formatarCpfCnpj = (v: string) => {
+    const n = v.replace(/\D/g, '').slice(0, 14)
+    if (n.length <= 11)
+      return n.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')
+        .replace(/(\d{3})(\d{3})(\d{1,3})/, '$1.$2.$3')
+        .replace(/(\d{3})(\d{1,3})/, '$1.$2')
+    return n.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')
+      .replace(/(\d{2})(\d{3})(\d{3})(\d{1,4})/, '$1.$2.$3/$4')
+      .replace(/(\d{2})(\d{3})(\d{1,3})/, '$1.$2.$3')
+      .replace(/(\d{2})(\d{1,3})/, '$1.$2')
+  }
+
+  const iniciarCheckout = async (planoId: string, cpfValor: string) => {
     setProcessandoPagamento(true)
+    setModalCpf(null)
     try {
       const r = await apiFetch<{ url: string; gratuito?: boolean }>('/pagamento/checkout', {
         method: 'POST',
-        body: JSON.stringify({ plano_id: planoId }),
+        body: JSON.stringify({ plano_id: planoId, cpf: cpfValor.replace(/\D/g, '') }),
       })
       if (r.gratuito || !r.url) {
         router.push('/comerciante/dashboard?setup=1')
@@ -743,6 +755,24 @@ export default function OnboardingPage() {
       alert('Erro ao iniciar pagamento: ' + err.message)
       setProcessandoPagamento(false)
     }
+  }
+
+  const handleAtivar = (planoId: string) => {
+    if (planoId === 'basico') {
+      router.push('/comerciante/dashboard?setup=1')
+      return
+    }
+    setCpf(''); setErroCpf('')
+    setModalCpf({ planoId })
+  }
+
+  const confirmarCpf = () => {
+    const numeros = cpf.replace(/\D/g, '')
+    if (numeros.length !== 11 && numeros.length !== 14) {
+      setErroCpf('Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido.')
+      return
+    }
+    iniciarCheckout(modalCpf!.planoId, numeros)
   }
 
   return (
@@ -793,6 +823,42 @@ export default function OnboardingPage() {
           )}
           {passo === 2 && <Passo4 onAtivar={handleAtivar} carregando={processandoPagamento} />}
         </div>
+
+        {/* Modal CPF */}
+        {modalCpf && (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 24, backdropFilter: 'blur(4px)' }}
+            onClick={e => { if (e.target === e.currentTarget) setModalCpf(null) }}>
+            <div style={{ background: 'white', borderRadius: 24, padding: '36px 32px', maxWidth: 400, width: '100%', boxShadow: '0 24px 60px rgba(0,0,0,0.2)' }}>
+              <div style={{ width: 48, height: 48, borderRadius: 14, background: '#DCFCE7', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 16 }}>
+                <span style={{ fontSize: 22 }}>🔒</span>
+              </div>
+              <h2 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.2rem', color: '#111827', margin: '0 0 8px' }}>
+                Informe seu CPF ou CNPJ
+              </h2>
+              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#6B7280', margin: '0 0 20px', lineHeight: 1.6 }}>
+                Necessário para emissão do recibo de pagamento. Seus dados são protegidos.
+              </p>
+              <input
+                value={cpf}
+                onChange={e => { setCpf(formatarCpfCnpj(e.target.value)); setErroCpf('') }}
+                placeholder="000.000.000-00"
+                style={{ width: '100%', padding: '13px 16px', border: `1.5px solid ${erroCpf ? '#DC2626' : '#E5E7EB'}`, borderRadius: 12, fontSize: 16, fontFamily: 'Inter, sans-serif', outline: 'none', boxSizing: 'border-box', letterSpacing: '0.05em' }}
+                onKeyDown={e => e.key === 'Enter' && confirmarCpf()}
+                autoFocus
+              />
+              {erroCpf && <p style={{ color: '#DC2626', fontSize: 12, fontFamily: 'Inter, sans-serif', margin: '6px 0 0' }}>{erroCpf}</p>}
+              <button
+                onClick={confirmarCpf}
+                style={{ width: '100%', marginTop: 16, padding: '14px', background: 'linear-gradient(135deg, #16A34A, #15803D)', color: 'white', border: 'none', borderRadius: 12, fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 15, cursor: 'pointer', boxShadow: '0 4px 14px rgba(22,163,74,0.35)' }}
+              >
+                Continuar para pagamento →
+              </button>
+              <button onClick={() => setModalCpf(null)} style={{ width: '100%', marginTop: 10, padding: '10px', background: 'none', border: 'none', color: '#9CA3AF', fontFamily: 'Inter, sans-serif', fontSize: 13, cursor: 'pointer' }}>
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Footer */}
         <p style={{ textAlign: 'center', color: '#9CA3AF', fontSize: 12, marginTop: 20, fontFamily: 'Inter, sans-serif' }}>
