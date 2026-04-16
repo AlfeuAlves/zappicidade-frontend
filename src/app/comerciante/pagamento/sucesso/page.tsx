@@ -15,7 +15,7 @@ export default function PagamentoSucessoPage() {
     const verificar = async () => {
       try {
         const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/pagamento/status`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+          headers: { Authorization: `Bearer ${localStorage.getItem('vl_token')}` },
         })
         const data = await r.json()
         if (data?.assinatura?.status === 'ativa') {
