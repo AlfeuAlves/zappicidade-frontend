@@ -10,15 +10,19 @@ export default function PagamentoSucessoPage() {
   const [ativo, setAtivo] = useState(false)
   const [tentativas, setTentativas] = useState(0)
 
-  // Tenta verificar até 10x se a assinatura foi ativada (webhook pode demorar alguns segundos)
+  // Tenta verificar até 10x se a assinatura foi ativada
+  // Chama /verificar que consulta o Asaas diretamente e ativa se confirmado
   useEffect(() => {
+    const token = localStorage.getItem('vl_token')
+    const headers = { Authorization: `Bearer ${token}` }
+    const base = process.env.NEXT_PUBLIC_API_URL
+
     const verificar = async () => {
       try {
-        const r = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/pagamento/status`, {
-          headers: { Authorization: `Bearer ${localStorage.getItem('vl_token')}` },
-        })
+        // Consulta Asaas e ativa se confirmado
+        const r = await fetch(`${base}/pagamento/verificar`, { headers })
         const data = await r.json()
-        if (data?.assinatura?.status === 'ativa') {
+        if (data?.ativa) {
           setAtivo(true)
           setVerificando(false)
           return

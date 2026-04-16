@@ -757,98 +757,169 @@ function SecaoCampanhas({ dados, aprovado, onCriarAnuncio }: { dados: DashboardD
 }
 
 // ── SecaoFaturamento ─────────────────────────────────────────────
+interface Assinatura {
+  status: string
+  plano_slug: string
+  valor: number
+  inicio: string
+  fim: string | null
+}
+
+const PLANO_INFO: Record<string, { label: string; preco: string; periodo: string; recursos: string[] }> = {
+  basico:      { label: 'Básico',       preco: 'R$ 0',      periodo: 'grátis',   recursos: ['Perfil básico do negócio', 'Aparece nas buscas do Zappi', 'Horários de funcionamento', 'QR Code básico'] },
+  pro_mensal:  { label: 'PRO Mensal',   preco: 'R$59,90',   periodo: '/mês',     recursos: ['Tudo do Básico', 'Galeria de 4 fotos', 'Promoções e anúncios', 'Destaque nas buscas', 'Analytics completo'] },
+  pro_3meses:  { label: 'PRO 3 Meses', preco: 'R$149,90',  periodo: '/3 meses', recursos: ['Tudo do Básico', 'Galeria de 4 fotos', 'Promoções e anúncios', 'Destaque nas buscas', 'Analytics completo'] },
+  pro_6meses:  { label: 'PRO 6 Meses', preco: 'R$269,90',  periodo: '/6 meses', recursos: ['Tudo do Básico', 'Galeria de 4 fotos', 'Promoções e anúncios', 'Destaque nas buscas', 'Analytics completo'] },
+  pro_12meses: { label: 'PRO 12 Meses','preco': 'R$479,90', periodo: '/12 meses',recursos: ['Tudo do Básico', 'Galeria de 4 fotos', 'Promoções e anúncios', 'Destaque nas buscas', 'Analytics completo'] },
+}
+
 function SecaoFaturamento() {
-  const planos = [
-    {
-      nome: 'Basic', preco: 'R$0,00', periodo: '/mês',
-      recursos: ['Perfil básico do negócio', 'Aparece nas buscas do Zappi', 'Horários de funcionamento', 'QR Code básico'],
-      cor: '#3B82F6', bg: '#EFF6FF', destaque: false, btnLabel: 'Plano atual',
-    },
-    {
-      nome: 'Pro', preco: 'R$59,90', periodo: '/mês',
-      recursos: ['Tudo do Basic', 'Promoções e anúncios', 'Destaque nas buscas', 'QR Code rastreável', 'Analytics completo'],
-      cor: '#16A34A', bg: '#F0FDF4', destaque: true, btnLabel: 'Fazer upgrade',
-    },
+  const [assinatura, setAssinatura] = useState<Assinatura | null>(null)
+  const [carregando, setCarregando] = useState(true)
+
+  useEffect(() => {
+    const carregar = async () => {
+      try {
+        // Primeiro tenta ativar consultando o Asaas (resolve casos em que webhook falhou)
+        const verificado = await apiFetch<{ ativa: boolean }>('/pagamento/verificar').catch(() => null)
+        // Depois busca o status atualizado
+        const r = await apiFetch<{ assinatura: Assinatura | null }>('/pagamento/status')
+        setAssinatura(r.assinatura)
+      } catch {
+        // ignora — mostra básico
+      } finally {
+        setCarregando(false)
+      }
+    }
+    carregar()
+  }, [])
+
+  const isPro = assinatura?.status === 'ativa'
+  const slugAtual = isPro ? assinatura!.plano_slug : 'basico'
+  const infoAtual = PLANO_INFO[slugAtual] ?? PLANO_INFO.basico
+
+  const formatarData = (iso: string) =>
+    new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+
+  const planosGrid = [
+    { slug: 'basico', cor: '#3B82F6', bg: '#EFF6FF' },
+    { slug: 'pro_mensal', cor: '#16A34A', bg: '#F0FDF4', destaque: true },
+    { slug: 'pro_3meses', cor: '#7C3AED', bg: '#F5F3FF' },
+    { slug: 'pro_6meses', cor: '#EA580C', bg: '#FFF7ED', featured: true },
+    { slug: 'pro_12meses', cor: '#0891B2', bg: '#F0FDFA' },
   ]
+
   return (
     <div>
       {/* Header */}
       <div style={{ marginBottom: 32 }}>
         <h2 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.5rem', color: '#111827', margin: '0 0 6px' }}>Faturamento & Plano</h2>
-        <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#9CA3AF', margin: 0 }}>Gerencie sua assinatura e faça upgrade</p>
+        <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#9CA3AF', margin: 0 }}>Gerencie sua assinatura e mude de plano</p>
       </div>
 
       {/* Plano atual */}
-      <div style={{
-        background: 'linear-gradient(135deg, #F0FDF4, #DCFCE7)', border: '1.5px solid #BBF7D0',
-        borderRadius: 20, padding: '22px 28px', marginBottom: 32,
-        display: 'flex', alignItems: 'center', gap: 20,
-      }}>
-        <div style={{ width: 52, height: 52, borderRadius: 16, background: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <CreditCard size={24} color="white" />
+      {carregando ? (
+        <div style={{ background: '#F9FAFB', borderRadius: 20, padding: '28px', marginBottom: 32, display: 'flex', alignItems: 'center', gap: 12 }}>
+          <Loader2 size={20} color="#9CA3AF" style={{ animation: 'spin 1s linear infinite' }} />
+          <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#9CA3AF' }}>Carregando assinatura...</span>
         </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 15, color: '#111827' }}>
-            Plano atual: <span style={{ color: '#16A34A' }}>Basic (Grátis)</span>
+      ) : (
+        <div style={{
+          background: isPro ? 'linear-gradient(135deg, #F0FDF4, #DCFCE7)' : 'linear-gradient(135deg, #F8FAFC, #F1F5F9)',
+          border: isPro ? '1.5px solid #BBF7D0' : '1.5px solid #E2E8F0',
+          borderRadius: 20, padding: '22px 28px', marginBottom: 32,
+          display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap',
+        }}>
+          <div style={{ width: 52, height: 52, borderRadius: 16, background: isPro ? '#16A34A' : '#3B82F6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            {isPro ? <Crown size={24} color="white" /> : <CreditCard size={24} color="white" />}
           </div>
-          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#4B5563', margin: '4px 0 0' }}>Faça upgrade para Pro e desbloqueie promoções, destaque e analytics completo</p>
+          <div style={{ flex: 1, minWidth: 180 }}>
+            <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 15, color: '#111827' }}>
+              Plano atual:{' '}
+              <span style={{ color: isPro ? '#16A34A' : '#3B82F6' }}>{infoAtual.label}</span>
+              {isPro && (
+                <span style={{ marginLeft: 8, background: '#DCFCE7', color: '#15803D', fontSize: 11, fontWeight: 800, padding: '2px 10px', borderRadius: 999, fontFamily: 'Poppins, sans-serif' }}>ATIVO</span>
+              )}
+            </div>
+            {isPro && assinatura?.inicio && (
+              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#4B5563', margin: '4px 0 0' }}>
+                Ativo desde {formatarData(assinatura.inicio)}
+                {assinatura.fim ? ` · Válido até ${formatarData(assinatura.fim)}` : ' · Renovação automática mensal'}
+              </p>
+            )}
+            {!isPro && (
+              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#4B5563', margin: '4px 0 0' }}>
+                Mude para PRO e desbloqueie galeria, promoções e destaque nas buscas
+              </p>
+            )}
+          </div>
+          {!isPro && (
+            <Link href="/comerciante/onboarding" style={{ background: 'linear-gradient(135deg, #16A34A, #15803D)', color: 'white', borderRadius: 12, padding: '10px 18px', fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 13, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+              <Crown size={14} /> Assinar PRO
+            </Link>
+          )}
         </div>
-        <div style={{ background: '#FEF9C3', border: '1.5px solid #FDE68A', borderRadius: 12, padding: '10px 16px', flexShrink: 0 }}>
-          <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 13, color: '#854D0E', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Crown size={14} /> Fazer upgrade
-          </span>
-        </div>
-      </div>
+      )}
 
       {/* Cards de plano */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 18 }}>
-        {planos.map(p => (
-          <div key={p.nome} style={{
-            background: p.destaque ? p.cor : 'white',
-            border: `2px solid ${p.destaque ? p.cor : '#E5E7EB'}`,
-            borderRadius: 24, padding: '28px 24px', position: 'relative',
-            display: 'flex', flexDirection: 'column', gap: 20,
-            boxShadow: p.destaque ? `0 16px 48px ${p.cor}30` : '0 2px 8px rgba(31,41,55,0.04)',
-            transition: 'transform 0.2s',
-          }}
-            onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-3px)'}
-            onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}>
-            {p.destaque && (
-              <div style={{ position: 'absolute', top: -14, left: '50%', transform: 'translateX(-50%)', background: '#111827', color: 'white', fontSize: 11, fontWeight: 700, padding: '5px 16px', borderRadius: 999, whiteSpace: 'nowrap' }}>
-                ⭐ Recomendado
-              </div>
-            )}
-            <div>
-              <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1rem', color: p.destaque ? 'white' : '#111827', marginBottom: 8 }}>{p.nome}</div>
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
-                <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 900, fontSize: '2rem', color: p.destaque ? 'white' : p.cor, lineHeight: 1 }}>{p.preco}</span>
-                <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: p.destaque ? 'rgba(255,255,255,0.7)' : '#9CA3AF' }}>{p.periodo}</span>
-              </div>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, flex: 1 }}>
-              {p.recursos.map(r => (
-                <div key={r} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 20, height: 20, borderRadius: '50%', background: p.destaque ? 'rgba(255,255,255,0.2)' : p.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <Check size={11} color={p.destaque ? 'white' : p.cor} strokeWidth={3} />
-                  </div>
-                  <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: p.destaque ? 'rgba(255,255,255,0.9)' : '#4B5563' }}>{r}</span>
-                </div>
-              ))}
-            </div>
-            <button style={{
-              width: '100%', padding: '14px', borderRadius: 14, border: 'none',
-              cursor: p.destaque ? 'pointer' : 'default',
-              background: p.destaque ? 'rgba(255,255,255,0.2)' : '#F1F5F9',
-              color: p.destaque ? 'white' : '#94A3B8',
-              fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 14,
-              transition: 'all 0.2s',
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14 }}>
+        {planosGrid.map(({ slug, cor, bg, destaque, featured }) => {
+          const info = PLANO_INFO[slug]
+          const ativo = slug === slugAtual && isPro || (slug === 'basico' && !isPro)
+          return (
+            <div key={slug} style={{
+              background: ativo ? cor : 'white',
+              border: `2px solid ${ativo ? cor : destaque ? cor + '60' : '#E5E7EB'}`,
+              borderRadius: 20, padding: '20px 16px', position: 'relative',
+              display: 'flex', flexDirection: 'column', gap: 14,
+              boxShadow: ativo ? `0 12px 36px ${cor}35` : '0 2px 8px rgba(31,41,55,0.04)',
+              transition: 'transform 0.2s',
             }}
-              onMouseEnter={e => { if (p.destaque) e.currentTarget.style.opacity = '0.85' }}
-              onMouseLeave={e => { if (p.destaque) e.currentTarget.style.opacity = '1' }}>
-              {p.btnLabel}
-            </button>
-          </div>
-        ))}
+              onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
+              onMouseLeave={e => e.currentTarget.style.transform = 'translateY(0)'}>
+              {featured && !ativo && (
+                <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', background: '#EA580C', color: 'white', fontSize: 10, fontWeight: 800, padding: '3px 12px', borderRadius: 999, whiteSpace: 'nowrap', fontFamily: 'Poppins, sans-serif' }}>
+                  MAIS ESCOLHIDO
+                </div>
+              )}
+              {ativo && (
+                <div style={{ position: 'absolute', top: -12, left: '50%', transform: 'translateX(-50%)', background: '#111827', color: 'white', fontSize: 10, fontWeight: 800, padding: '3px 12px', borderRadius: 999, whiteSpace: 'nowrap', fontFamily: 'Poppins, sans-serif' }}>
+                  PLANO ATUAL
+                </div>
+              )}
+              <div>
+                <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '0.85rem', color: ativo ? 'white' : '#111827', marginBottom: 6 }}>{info.label}</div>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 2 }}>
+                  <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 900, fontSize: '1.4rem', color: ativo ? 'white' : cor, lineHeight: 1 }}>{info.preco}</span>
+                </div>
+                <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: ativo ? 'rgba(255,255,255,0.75)' : '#9CA3AF' }}>{info.periodo}</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 7, flex: 1 }}>
+                {info.recursos.map(r => (
+                  <div key={r} style={{ display: 'flex', alignItems: 'flex-start', gap: 7 }}>
+                    <div style={{ width: 16, height: 16, borderRadius: '50%', background: ativo ? 'rgba(255,255,255,0.25)' : bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, marginTop: 1 }}>
+                      <Check size={9} color={ativo ? 'white' : cor} strokeWidth={3} />
+                    </div>
+                    <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 11.5, color: ativo ? 'rgba(255,255,255,0.9)' : '#4B5563', lineHeight: 1.4 }}>{r}</span>
+                  </div>
+                ))}
+              </div>
+              {ativo ? (
+                <div style={{ width: '100%', padding: '10px', borderRadius: 12, background: 'rgba(255,255,255,0.2)', color: 'white', fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 13, textAlign: 'center' }}>
+                  Ativo ✓
+                </div>
+              ) : slug === 'basico' ? (
+                <div style={{ width: '100%', padding: '10px', borderRadius: 12, background: '#F1F5F9', color: '#94A3B8', fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 13, textAlign: 'center' }}>
+                  Plano grátis
+                </div>
+              ) : (
+                <Link href="/comerciante/onboarding" style={{ width: '100%', padding: '10px', borderRadius: 12, background: cor, color: 'white', fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 13, textAlign: 'center', textDecoration: 'none', display: 'block' }}>
+                  Assinar
+                </Link>
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
