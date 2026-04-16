@@ -41,9 +41,10 @@ const PLANOS = [
     botaoCor: 'white',
     descricao: 'Ideal para testar',
     recursos: [
-      'Mais visibilidade',
-      'Melhor posicionamento nas buscas',
+      'Galeria de 4 fotos no perfil',
+      'Destaque nas buscas',
       'Promoções e ofertas ilimitadas',
+      '📣 Destaque TOP — push para clientes',
       'Analytics de visitas',
     ],
   },
@@ -63,10 +64,11 @@ const PLANOS = [
     botaoCor: 'white',
     descricao: 'Economia em relação ao mensal',
     recursos: [
-      'Mais tempo aparecendo para clientes',
-      'Mais chances de contato',
       'Tudo do PRO Mensal',
+      'Galeria de 4 fotos no perfil',
+      '📣 Destaque TOP incluso',
       'Suporte via WhatsApp',
+      'Mais chances de contato',
     ],
   },
   {
@@ -85,10 +87,11 @@ const PLANOS = [
     botaoCor: '#16A34A',
     descricao: 'Melhor custo-benefício',
     recursos: [
-      'Destaque nas buscas',
-      'Maior geração de clientes',
       'Tudo do PRO 3 Meses',
+      'Galeria de 4 fotos no perfil',
+      '📣 Destaque TOP incluso',
       'Prioridade no suporte',
+      'Maior geração de clientes',
     ],
   },
   {
@@ -107,18 +110,19 @@ const PLANOS = [
     botaoCor: 'white',
     descricao: 'Máxima economia',
     recursos: [
+      'Tudo do PRO 6 Meses',
+      'Galeria de 4 fotos no perfil',
+      '📣 Destaque TOP incluso',
       'Presença contínua o ano todo',
       'Prioridade na plataforma',
-      'Tudo do PRO 6 Meses',
-      'Maior visibilidade garantida',
     ],
   },
 ]
 
 const BENEFICIOS_PRO = [
   { icone: '🔝', texto: 'Sua empresa aparece primeiro' },
-  { icone: '📲', texto: 'Mais cliques e contatos' },
-  { icone: '🎯', texto: 'Participação em promoções' },
+  { icone: '📣', texto: 'Destaque TOP — push no WhatsApp' },
+  { icone: '🖼️', texto: 'Galeria de fotos no perfil' },
   { icone: '🌆', texto: 'Maior visibilidade na cidade' },
 ]
 

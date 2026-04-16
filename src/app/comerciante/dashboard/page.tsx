@@ -672,9 +672,207 @@ function SecaoDashboard({ dados, comerciante, aprovado, onCriarAnuncio, onVender
   )
 }
 
+// ── DestaqueTopForm ──────────────────────────────────────────────
+function DestaqueTopForm({ isPro, onFechar }: { isPro: boolean; onFechar: () => void }) {
+  const [texto, setTexto] = useState('')
+  const [publico, setPublico] = useState<'cidade' | 'bairro'>('cidade')
+  const [imagem, setImagem] = useState<string | null>(null)
+  const [enviando, setEnviando] = useState(false)
+  const [enviado, setEnviado] = useState(false)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  const handleImagem = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = ev => setImagem(ev.target?.result as string)
+    reader.readAsDataURL(file)
+  }
+
+  const handleEnviar = async () => {
+    if (!texto.trim()) return
+    setEnviando(true)
+    try {
+      await apiFetch('/comerciante/broadcast', {
+        method: 'POST',
+        body: JSON.stringify({ texto, publico, imagem }),
+      })
+      setEnviado(true)
+    } catch {
+      // erro silencioso por ora
+    } finally {
+      setEnviando(false)
+    }
+  }
+
+  if (!isPro) {
+    return (
+      <div style={{ background: 'linear-gradient(135deg, #F0FDF4, #DCFCE7)', border: '2px solid #BBF7D0', borderRadius: 24, padding: '32px', textAlign: 'center' }}>
+        <div style={{ width: 64, height: 64, borderRadius: 20, background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px', boxShadow: '0 4px 16px rgba(22,163,74,0.15)' }}>
+          <Crown size={28} color="#16A34A" />
+        </div>
+        <h3 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.1rem', color: '#111827', margin: '0 0 8px' }}>Recurso exclusivo PRO</h3>
+        <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#4B5563', margin: '0 0 20px', lineHeight: 1.6 }}>
+          O Destaque TOP envia sua promoção diretamente no WhatsApp de quem autorizou receber.<br />Faça upgrade para PRO e comece a usar agora.
+        </p>
+        <Link href="/comerciante/onboarding" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'linear-gradient(135deg, #16A34A, #15803D)', color: 'white', borderRadius: 12, padding: '12px 24px', fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 14, textDecoration: 'none', boxShadow: '0 4px 16px rgba(22,163,74,0.35)' }}>
+          <Crown size={16} /> Assinar PRO
+        </Link>
+      </div>
+    )
+  }
+
+  if (enviado) {
+    return (
+      <div style={{ background: '#F0FDF4', border: '2px solid #BBF7D0', borderRadius: 24, padding: '40px', textAlign: 'center' }}>
+        <div style={{ width: 72, height: 72, borderRadius: '50%', background: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', boxShadow: '0 8px 24px rgba(22,163,74,0.35)' }}>
+          <Check size={36} color="white" />
+        </div>
+        <h3 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.2rem', color: '#111827', margin: '0 0 8px' }}>Destaque TOP enviado!</h3>
+        <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#4B5563', margin: '0 0 24px' }}>Sua mensagem está chegando no WhatsApp dos clientes agora.</p>
+        <button onClick={onFechar} style={{ background: '#16A34A', color: 'white', border: 'none', borderRadius: 12, padding: '12px 28px', fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
+          Concluir
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 24, overflow: 'hidden' }}>
+      {/* Header do form */}
+      <div style={{ background: 'linear-gradient(135deg, #111827, #1F2937)', padding: '20px 28px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Megaphone size={20} color="white" />
+          </div>
+          <div>
+            <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: 15, color: 'white' }}>Criar Destaque TOP</div>
+            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>Mensagem push no WhatsApp dos clientes</div>
+          </div>
+        </div>
+        <button onClick={onFechar} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, padding: 8, cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+          <X size={18} color="white" />
+        </button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0 }}>
+        {/* Editor */}
+        <div style={{ padding: '28px', borderRight: '1px solid #F3F4F6' }}>
+
+          {/* Upload de imagem */}
+          <div style={{ marginBottom: 24 }}>
+            <label style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 13, color: '#374151', display: 'block', marginBottom: 10 }}>
+              Imagem <span style={{ fontWeight: 400, color: '#9CA3AF', fontSize: 12 }}>(opcional)</span>
+            </label>
+            <input ref={fileRef} type="file" accept="image/*" onChange={handleImagem} style={{ display: 'none' }} />
+            {imagem ? (
+              <div style={{ position: 'relative' }}>
+                <img src={imagem} alt="preview" style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 14, border: '1.5px solid #E5E7EB' }} />
+                <button onClick={() => setImagem(null)} style={{ position: 'absolute', top: 8, right: 8, background: '#111827cc', border: 'none', borderRadius: 8, padding: '4px 8px', cursor: 'pointer', color: 'white', fontSize: 11, fontWeight: 700 }}>
+                  Remover
+                </button>
+              </div>
+            ) : (
+              <button onClick={() => fileRef.current?.click()} style={{ width: '100%', height: 100, border: '2px dashed #D1D5DB', borderRadius: 14, background: '#F9FAFB', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.15s' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#16A34A'; e.currentTarget.style.background = '#F0FDF4' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = '#D1D5DB'; e.currentTarget.style.background = '#F9FAFB' }}>
+                <ImageIcon size={24} color="#9CA3AF" />
+                <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#9CA3AF' }}>Clique para adicionar imagem</span>
+              </button>
+            )}
+          </div>
+
+          {/* Texto da mensagem */}
+          <div style={{ marginBottom: 24 }}>
+            <label style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 13, color: '#374151', display: 'block', marginBottom: 10 }}>
+              Mensagem <span style={{ color: '#EF4444', fontSize: 12 }}>*</span>
+            </label>
+            <textarea
+              value={texto}
+              onChange={e => setTexto(e.target.value)}
+              maxLength={500}
+              placeholder="Ex: 🔥 PROMOÇÃO RELÂMPAGO! Shampoo Clear a partir de R$17,99. Venha aproveitar hoje!"
+              style={{ width: '100%', height: 120, border: '1.5px solid #E5E7EB', borderRadius: 12, padding: '12px 14px', fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#111827', resize: 'none', outline: 'none', lineHeight: 1.5, boxSizing: 'border-box' }}
+              onFocus={e => e.target.style.borderColor = '#16A34A'}
+              onBlur={e => e.target.style.borderColor = '#E5E7EB'}
+            />
+            <div style={{ textAlign: 'right', fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>{texto.length}/500</div>
+          </div>
+
+          {/* Público */}
+          <div style={{ marginBottom: 28 }}>
+            <label style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 13, color: '#374151', display: 'block', marginBottom: 10 }}>Público-alvo</label>
+            <div style={{ display: 'flex', gap: 10 }}>
+              {([['cidade', '🌆 Toda a cidade'], ['bairro', '📍 Por bairro']] as const).map(([val, label]) => (
+                <button key={val} onClick={() => setPublico(val)} style={{ flex: 1, padding: '10px 14px', borderRadius: 12, border: `2px solid ${publico === val ? '#16A34A' : '#E5E7EB'}`, background: publico === val ? '#F0FDF4' : 'white', fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: 13, color: publico === val ? '#16A34A' : '#6B7280', cursor: 'pointer', transition: 'all 0.15s' }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <button onClick={handleEnviar} disabled={!texto.trim() || enviando} style={{ width: '100%', padding: '14px', background: texto.trim() ? 'linear-gradient(135deg, #16A34A, #15803D)' : '#E5E7EB', color: texto.trim() ? 'white' : '#9CA3AF', border: 'none', borderRadius: 14, fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 15, cursor: texto.trim() ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: texto.trim() ? '0 4px 16px rgba(22,163,74,0.35)' : 'none', transition: 'all 0.2s' }}>
+            {enviando ? <><Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> Enviando...</> : <><Megaphone size={18} /> Enviar Destaque TOP</>}
+          </button>
+        </div>
+
+        {/* Preview WhatsApp */}
+        <div style={{ padding: '28px', background: '#F0F2F5' }}>
+          <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 13, color: '#374151', marginBottom: 14 }}>Preview</div>
+          <div style={{ background: '#E5DDD5', borderRadius: 16, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.12)' }}>
+            {/* Header do "WhatsApp" */}
+            <div style={{ background: '#075E54', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#25D366', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <span style={{ fontSize: 16 }}>🤖</span>
+              </div>
+              <div>
+                <div style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: 14, color: 'white' }}>Zappi Cidade</div>
+                <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>online</div>
+              </div>
+            </div>
+            {/* Mensagem */}
+            <div style={{ padding: '16px 12px', minHeight: 180 }}>
+              <div style={{ background: 'white', borderRadius: '0 12px 12px 12px', overflow: 'hidden', maxWidth: '85%', boxShadow: '0 1px 2px rgba(0,0,0,0.1)' }}>
+                {imagem && <img src={imagem} alt="" style={{ width: '100%', maxHeight: 160, objectFit: 'cover', display: 'block' }} />}
+                <div style={{ padding: '10px 12px' }}>
+                  <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#111827', margin: 0, lineHeight: 1.5, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                    {texto || <span style={{ color: '#9CA3AF', fontStyle: 'italic' }}>Sua mensagem aparecerá aqui...</span>}
+                  </p>
+                  {texto && (
+                    <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid #F3F4F6' }}>
+                      <button style={{ width: '100%', background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 8, padding: '8px', fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: 12, color: '#16A34A', cursor: 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                        <ExternalLink size={12} /> Quero garantir
+                      </button>
+                    </div>
+                  )}
+                  <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 10, color: '#9CA3AF', textAlign: 'right', marginTop: 4 }}>
+                    {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                  </div>
+                </div>
+              </div>
+              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 10, color: '#6B7280', margin: '8px 0 0 4px' }}>
+                Digite SAIR para não receber mais comunicações.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── SecaoCampanhas ───────────────────────────────────────────────
 function SecaoCampanhas({ dados, aprovado, onCriarAnuncio }: { dados: DashboardData | null; aprovado: boolean; onCriarAnuncio: () => void }) {
   const promocoes = dados?.promocoes_ativas || []
+  const [mostrarDestaque, setMostrarDestaque] = useState(false)
+  const [isPro, setIsPro] = useState(false)
+
+  useEffect(() => {
+    apiFetch<{ assinatura: { status: string } | null }>('/pagamento/status')
+      .then(r => setIsPro(r.assinatura?.status === 'ativa'))
+      .catch(() => {})
+  }, [])
+
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
@@ -693,6 +891,33 @@ function SecaoCampanhas({ dados, aprovado, onCriarAnuncio }: { dados: DashboardD
           <Plus size={16} /> Criar anúncio
         </button>
       </div>
+
+      {/* Destaque TOP */}
+      {!mostrarDestaque ? (
+        <div style={{ background: 'linear-gradient(135deg, #111827 0%, #1F2937 100%)', borderRadius: 24, padding: '24px 28px', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+          <div style={{ width: 52, height: 52, borderRadius: 16, background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Megaphone size={24} color="white" />
+          </div>
+          <div style={{ flex: 1, minWidth: 200 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+              <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: 16, color: 'white' }}>Destaque TOP</span>
+              {isPro && <span style={{ background: '#16A34A', color: 'white', fontSize: 10, fontWeight: 800, padding: '2px 10px', borderRadius: 999, fontFamily: 'Poppins, sans-serif' }}>PRO</span>}
+            </div>
+            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: 'rgba(255,255,255,0.65)', margin: 0, lineHeight: 1.5 }}>
+              Envie sua promoção diretamente no WhatsApp de quem autorizou receber. Alta conversão, entrega garantida.
+            </p>
+          </div>
+          <button onClick={() => setMostrarDestaque(true)} style={{ background: 'white', color: '#111827', border: 'none', borderRadius: 12, padding: '11px 20px', fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, transition: 'all 0.15s' }}
+            onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
+            onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
+            <Zap size={14} color="#16A34A" /> Criar Destaque TOP
+          </button>
+        </div>
+      ) : (
+        <div style={{ marginBottom: 24 }}>
+          <DestaqueTopForm isPro={isPro} onFechar={() => setMostrarDestaque(false)} />
+        </div>
+      )}
 
       {promocoes.length === 0 ? (
         <div style={{ background: 'white', border: '2px dashed #E5E7EB', borderRadius: 24, padding: '64px 40px', textAlign: 'center' }}>
@@ -767,10 +992,10 @@ interface Assinatura {
 
 const PLANO_INFO: Record<string, { label: string; preco: string; periodo: string; recursos: string[] }> = {
   basico:      { label: 'Básico',       preco: 'R$ 0',      periodo: 'grátis',   recursos: ['Perfil básico do negócio', 'Aparece nas buscas do Zappi', 'Horários de funcionamento', 'QR Code básico'] },
-  pro_mensal:  { label: 'PRO Mensal',   preco: 'R$59,90',   periodo: '/mês',     recursos: ['Tudo do Básico', 'Galeria de 4 fotos', 'Promoções e anúncios', 'Destaque nas buscas', 'Analytics completo'] },
-  pro_3meses:  { label: 'PRO 3 Meses', preco: 'R$149,90',  periodo: '/3 meses', recursos: ['Tudo do Básico', 'Galeria de 4 fotos', 'Promoções e anúncios', 'Destaque nas buscas', 'Analytics completo'] },
-  pro_6meses:  { label: 'PRO 6 Meses', preco: 'R$269,90',  periodo: '/6 meses', recursos: ['Tudo do Básico', 'Galeria de 4 fotos', 'Promoções e anúncios', 'Destaque nas buscas', 'Analytics completo'] },
-  pro_12meses: { label: 'PRO 12 Meses','preco': 'R$479,90', periodo: '/12 meses',recursos: ['Tudo do Básico', 'Galeria de 4 fotos', 'Promoções e anúncios', 'Destaque nas buscas', 'Analytics completo'] },
+  pro_mensal:  { label: 'PRO Mensal',   preco: 'R$59,90',   periodo: '/mês',     recursos: ['Galeria de 4 fotos', 'Destaque nas buscas', 'Promoções ilimitadas', '📣 Destaque TOP incluso', 'Analytics completo'] },
+  pro_3meses:  { label: 'PRO 3 Meses', preco: 'R$149,90',  periodo: '/3 meses', recursos: ['Galeria de 4 fotos', 'Destaque nas buscas', 'Promoções ilimitadas', '📣 Destaque TOP incluso', 'Analytics completo'] },
+  pro_6meses:  { label: 'PRO 6 Meses', preco: 'R$269,90',  periodo: '/6 meses', recursos: ['Galeria de 4 fotos', 'Destaque nas buscas', 'Promoções ilimitadas', '📣 Destaque TOP incluso', 'Analytics completo'] },
+  pro_12meses: { label: 'PRO 12 Meses', preco: 'R$479,90', periodo: '/12 meses', recursos: ['Galeria de 4 fotos', 'Destaque nas buscas', 'Promoções ilimitadas', '📣 Destaque TOP incluso', 'Analytics completo'] },
 }
 
 function SecaoFaturamento() {
