@@ -854,6 +854,197 @@ function SecaoFaturamento() {
   )
 }
 
+// ── GaleriaFotos ─────────────────────────────────────────────────
+function GaleriaFotos({ isPro, comercioId }: { isPro: boolean; comercioId: string }) {
+  const [fotos, setFotos] = useState<string[]>(['', '', '', ''])
+  const [carregando, setCarregando] = useState(true)
+  const [enviando, setEnviando] = useState<number | null>(null)
+  const [slide, setSlide] = useState(0)
+  const fileRefs = [useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null), useRef<HTMLInputElement>(null)]
+
+  useEffect(() => {
+    apiFetch<any>('/comerciante/perfil').then(p => {
+      const g = p.comercio?.fotos_galeria
+      if (Array.isArray(g)) {
+        const arr = [...g]
+        while (arr.length < 4) arr.push('')
+        setFotos(arr)
+      }
+    }).catch(() => {}).finally(() => setCarregando(false))
+  }, [comercioId])
+
+  const uploadFoto = async (indice: number, file: File) => {
+    setEnviando(indice)
+    const reader = new FileReader()
+    reader.onload = async (e) => {
+      const base64 = e.target?.result as string
+      try {
+        const r = await apiFetch<any>('/comerciante/upload/galeria', {
+          method: 'POST',
+          body: JSON.stringify({ base64, extensao: 'jpg', indice }),
+        })
+        const arr = Array.isArray(r.galeria) ? r.galeria : [...fotos]
+        while (arr.length < 4) arr.push('')
+        setFotos(arr)
+        setSlide(indice)
+      } catch {
+        alert('Erro ao enviar foto.')
+      } finally { setEnviando(null) }
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const removerFoto = async (indice: number) => {
+    setEnviando(indice)
+    try {
+      const r = await apiFetch<any>(`/comerciante/upload/galeria/${indice}`, { method: 'DELETE' })
+      const arr = Array.isArray(r.galeria) ? r.galeria : [...fotos]
+      while (arr.length < 4) arr.push('')
+      setFotos(arr)
+      if (slide >= indice && slide > 0) setSlide(slide - 1)
+    } catch {
+      alert('Erro ao remover foto.')
+    } finally { setEnviando(null) }
+  }
+
+  const fotosPreenchidas = fotos.filter(f => f).length
+
+  // --- Locked (plano básico) ---
+  if (!isPro) {
+    return (
+      <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 20, padding: 24, position: 'relative', overflow: 'hidden' }}>
+        {/* Fundo desfocado simulando galeria */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, opacity: 0.15, marginBottom: -120, pointerEvents: 'none' }}>
+          {[0,1,2,3].map(i => (
+            <div key={i} style={{ aspectRatio: '4/3', background: '#F3F4F6', borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <ImageIcon size={28} color="#9CA3AF" />
+            </div>
+          ))}
+        </div>
+        {/* Overlay de bloqueio */}
+        <div style={{ position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 20px', textAlign: 'center', background: 'rgba(255,255,255,0.85)', borderRadius: 14, backdropFilter: 'blur(4px)' }}>
+          <div style={{ width: 52, height: 52, borderRadius: 16, background: 'linear-gradient(135deg, #16A34A, #15803D)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14, boxShadow: '0 8px 20px rgba(22,163,74,0.3)' }}>
+            <Crown size={24} color="white" />
+          </div>
+          <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: 16, color: '#111827', marginBottom: 8 }}>
+            Galeria de Fotos — Recurso PRO
+          </div>
+          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#6B7280', maxWidth: 300, lineHeight: 1.6, margin: '0 0 20px' }}>
+            Adicione até 4 fotos do seu negócio para mostrar produtos, ambiente e diferenciais aos seus clientes.
+          </p>
+          <a href="/planos" style={{ background: 'linear-gradient(135deg, #16A34A, #15803D)', color: 'white', border: 'none', borderRadius: 12, padding: '12px 24px', fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 13, cursor: 'pointer', textDecoration: 'none', boxShadow: '0 4px 14px rgba(22,163,74,0.35)' }}>
+            Ver planos PRO →
+          </a>
+        </div>
+      </div>
+    )
+  }
+
+  // --- PRO: carrossel + upload ---
+  if (carregando) return <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 20, padding: 40, display: 'flex', justifyContent: 'center' }}><Loader2 size={20} style={{ animation: 'spin 1s linear infinite', color: '#16A34A' }} /></div>
+
+  const fotoAtual = fotos[slide]
+
+  return (
+    <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 20, padding: 24 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <h3 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 15, color: '#111827', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <ImageIcon size={16} color="#16A34A" /> Galeria de Fotos
+          <span style={{ background: '#DCFCE7', color: '#16A34A', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999, fontFamily: 'Poppins, sans-serif', letterSpacing: '0.05em' }}>PRO</span>
+        </h3>
+        <span style={{ fontSize: 12, color: '#9CA3AF', fontFamily: 'Inter, sans-serif' }}>{fotosPreenchidas}/4 fotos</span>
+      </div>
+
+      {/* Carrossel principal */}
+      <div style={{ position: 'relative', width: '100%', aspectRatio: '4/3', borderRadius: 14, overflow: 'hidden', background: '#F9FAFB', marginBottom: 12, border: '1.5px solid #E5E7EB' }}>
+        {fotoAtual ? (
+          <>
+            <img src={fotoAtual} alt={`Foto ${slide + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            {/* Botão remover */}
+            <button
+              onClick={() => removerFoto(slide)}
+              disabled={enviando !== null}
+              style={{ position: 'absolute', top: 10, right: 10, background: 'rgba(0,0,0,0.6)', color: 'white', border: 'none', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
+              {enviando === slide ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <X size={14} />}
+            </button>
+          </>
+        ) : (
+          <div
+            onClick={() => enviando === null && fileRefs[slide].current?.click()}
+            style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', gap: 10 }}
+          >
+            {enviando === slide ? (
+              <Loader2 size={28} style={{ animation: 'spin 1s linear infinite', color: '#16A34A' }} />
+            ) : (
+              <>
+                <div style={{ width: 48, height: 48, borderRadius: 12, background: '#DCFCE7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Plus size={22} color="#16A34A" />
+                </div>
+                <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#9CA3AF' }}>Clique para adicionar foto {slide + 1}</span>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Setas de navegação */}
+        {slide > 0 && (
+          <button onClick={() => setSlide(s => s - 1)} style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.45)', color: 'white', border: 'none', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ChevronLeft size={16} />
+          </button>
+        )}
+        {slide < 3 && (
+          <button onClick={() => setSlide(s => s + 1)} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'rgba(0,0,0,0.45)', color: 'white', border: 'none', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ChevronRight size={16} />
+          </button>
+        )}
+
+        {/* Indicador de slide */}
+        <div style={{ position: 'absolute', bottom: 10, left: '50%', transform: 'translateX(-50%)', display: 'flex', gap: 5 }}>
+          {[0,1,2,3].map(i => (
+            <button key={i} onClick={() => setSlide(i)} style={{ width: i === slide ? 20 : 6, height: 6, borderRadius: 999, border: 'none', cursor: 'pointer', background: i === slide ? 'white' : 'rgba(255,255,255,0.5)', transition: 'all 0.2s', padding: 0 }} />
+          ))}
+        </div>
+      </div>
+
+      {/* Miniaturas */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
+        {[0,1,2,3].map(i => {
+          const foto = fotos[i]
+          const ativo = i === slide
+          return (
+            <div
+              key={i}
+              onClick={() => { setSlide(i); if (!foto && enviando === null) fileRefs[i].current?.click() }}
+              style={{ aspectRatio: '1/1', borderRadius: 10, overflow: 'hidden', cursor: 'pointer', border: `2px solid ${ativo ? '#16A34A' : '#E5E7EB'}`, background: '#F9FAFB', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', transition: 'border-color 0.15s' }}
+            >
+              {foto ? (
+                <img src={foto} alt={`Miniatura ${i+1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              ) : enviando === i ? (
+                <Loader2 size={16} style={{ animation: 'spin 1s linear infinite', color: '#16A34A' }} />
+              ) : (
+                <Plus size={16} color="#9CA3AF" />
+              )}
+              {/* Inputs ocultos */}
+              <input
+                ref={fileRefs[i]}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={e => { if (e.target.files?.[0]) uploadFoto(i, e.target.files[0]); e.target.value = '' }}
+              />
+            </div>
+          )
+        })}
+      </div>
+      <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: '#9CA3AF', margin: '10px 0 0', textAlign: 'center' }}>
+        Clique em uma miniatura vazia para adicionar. Clique no ✕ para remover.
+      </p>
+    </div>
+  )
+}
+
 // ── SecaoMeuNegocio ──────────────────────────────────────────────
 function SecaoMeuNegocio() {
   const [carregando, setCarregando] = useState(true)
@@ -861,6 +1052,7 @@ function SecaoMeuNegocio() {
   const [sucesso, setSucesso] = useState(false)
   const [erro, setErro] = useState('')
   const [comercio, setComercio] = useState<any>(null)
+  const [isPro, setIsPro] = useState(false)
   const [categorias, setCategorias] = useState<any[]>([])
   const [slugCopiado, setSlugCopiado] = useState(false)
   const [descricao, setDescricao] = useState('')
@@ -881,6 +1073,8 @@ function SecaoMeuNegocio() {
   useEffect(() => {
     Promise.all([apiFetch<any>('/comerciante/perfil'), api.comercios.categorias()]).then(([perfil, cats]) => {
       const c = perfil.comercio; setCategorias(cats)
+      // Verifica se tem assinatura PRO ativa
+      setIsPro(!!perfil.assinatura)
       if (!c) return; setComercio(c)
       setDescricao(c.descricao||''); setWhatsapp(c.whatsapp||''); setTelefone(c.telefone||'')
       setWebsite(c.website||''); setInstagram(c.instagram||''); setEmailComercio(c.email||'')
@@ -942,6 +1136,9 @@ function SecaoMeuNegocio() {
             </div>
           )}
         </div>
+
+        {/* Galeria de fotos (PRO) */}
+        <GaleriaFotos isPro={isPro} comercioId={comercio.id} />
 
         {/* Link público */}
         {comercio.slug && (
