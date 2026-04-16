@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import {
   Phone, MapPin, Clock, Globe, Star, BadgeCheck,
-  MessageCircle, Share2, ChevronLeft, Tag, Calendar
+  MessageCircle, Share2, ChevronLeft, Tag, Calendar, X
 } from 'lucide-react'
 import type { Comercio, Promocao } from '@/lib/api'
 import { formatarTelefone, linkWhatsApp, formatarPreco, formatarAvaliacao } from '@/lib/utils'
@@ -31,6 +31,7 @@ export default function PaginaComercio({ comercio }: Props) {
   const [whatsapp, setWhatsapp] = useState('')
   const [nome, setNome] = useState('')
   const [enviando, setEnviando] = useState(false)
+  const [fotoAmpliada, setFotoAmpliada] = useState<string | null>(null)
   const [optinOk, setOptinOk] = useState(false)
   const [compartilhado, setCompartilhado] = useState(false)
   const diaAtual = DIAS[new Date().getDay()]
@@ -105,6 +106,27 @@ export default function PaginaComercio({ comercio }: Props) {
           </button>
         </div>
 
+        {/* ── LIGHTBOX ── */}
+        {fotoAmpliada && (
+          <div
+            onClick={() => setFotoAmpliada(null)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}
+          >
+            <button
+              onClick={() => setFotoAmpliada(null)}
+              style={{ position: 'absolute', top: 16, right: 16, background: 'white', border: 'none', borderRadius: '50%', width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 2px 12px rgba(0,0,0,0.3)' }}
+            >
+              <X size={20} />
+            </button>
+            <img
+              src={fotoAmpliada}
+              alt="Foto ampliada"
+              onClick={e => e.stopPropagation()}
+              style={{ maxWidth: '100%', maxHeight: '90vh', borderRadius: 16, objectFit: 'contain', boxShadow: '0 8px 40px rgba(0,0,0,0.5)' }}
+            />
+          </div>
+        )}
+
         {/* ── GALERIA (PRO) ── */}
         {(comercio as any).fotos?.length > 0 && (
           <div style={{ overflowX: 'auto', display: 'flex', gap: 8, padding: '10px 16px', background: '#F9FAFB', borderBottom: '1px solid #F3F4F6' }}>
@@ -113,8 +135,10 @@ export default function PaginaComercio({ comercio }: Props) {
                 key={i}
                 src={url}
                 alt={`${comercio.nome} foto ${i + 1}`}
-                style={{ height: 90, width: 140, objectFit: 'cover', borderRadius: 12, flexShrink: 0, cursor: 'pointer', border: '1.5px solid #E5E7EB' }}
-                onClick={() => window.open(url, '_blank')}
+                style={{ height: 90, width: 140, objectFit: 'cover', borderRadius: 12, flexShrink: 0, cursor: 'zoom-in', border: '1.5px solid #E5E7EB', transition: 'transform 0.15s, box-shadow 0.15s' }}
+                onClick={() => setFotoAmpliada(url)}
+                onMouseEnter={e => { e.currentTarget.style.transform = 'scale(1.06)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.18)'; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)'; e.currentTarget.style.boxShadow = 'none'; }}
               />
             ))}
           </div>
