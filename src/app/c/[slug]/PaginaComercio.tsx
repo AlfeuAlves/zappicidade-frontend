@@ -9,6 +9,13 @@ import type { Comercio, Promocao } from '@/lib/api'
 import { formatarTelefone, linkWhatsApp, formatarPreco, formatarAvaliacao } from '@/lib/utils'
 import { api } from '@/lib/api'
 
+// "1600" → "16:00"
+function formatarHora(h: string | undefined): string {
+  if (!h) return ''
+  const s = h.replace(':', '').padStart(4, '0')
+  return `${s.slice(0, 2)}:${s.slice(2)}`
+}
+
 const DIAS = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado']
 const DIAS_LABEL: Record<string, string> = {
   domingo: 'Dom', segunda: 'Seg', terca: 'Ter',
@@ -74,7 +81,7 @@ export default function PaginaComercio({ comercio }: Props) {
       <main style={{ background: '#F9FAFB', minHeight: '100vh', paddingBottom: whatsappLink ? 90 : 32 }}>
 
         {/* ── CAPA ── */}
-        <div style={{ height: 220, background: `url(${comercio.capa_url || '/capa_padrao.png'}) center/cover`, position: 'relative' }}>
+        <div style={{ height: 220, background: `url(${(comercio as any).foto_capa_url || comercio.capa_url || '/capa_padrao.png'}) center/cover`, position: 'relative' }}>
           <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.6) 100%)' }} />
 
           <Link href="/comercios" style={{
@@ -317,7 +324,7 @@ export default function PaginaComercio({ comercio }: Props) {
                         {ehHoje && '→ '}{DIAS_LABEL[dia]}
                       </span>
                       <span style={{ fontSize: 14, fontWeight: ehHoje ? 700 : 400, color: h ? (ehHoje ? '#16A34A' : '#374151') : '#DC2626' }}>
-                        {h ? `${h.aberto} – ${h.fechado}` : 'Fechado'}
+                        {h ? `${formatarHora((h as any).abre || h.aberto)} – ${formatarHora((h as any).fecha || h.fechado)}` : 'Fechado'}
                       </span>
                     </div>
                   )
