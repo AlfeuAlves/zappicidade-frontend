@@ -742,20 +742,12 @@ function DestaqueTopForm({ isPro, onFechar }: { isPro: boolean; onFechar: () => 
     )
   }
 
-  if (enviado) {
-    return (
-      <div style={{ background: '#F0FDF4', border: '2px solid #BBF7D0', borderRadius: 24, padding: '40px', textAlign: 'center' }}>
-        <div style={{ width: 72, height: 72, borderRadius: '50%', background: '#16A34A', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', boxShadow: '0 8px 24px rgba(22,163,74,0.35)' }}>
-          <Check size={36} color="white" />
-        </div>
-        <h3 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.2rem', color: '#111827', margin: '0 0 8px' }}>Destaque TOP enviado!</h3>
-        <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#4B5563', margin: '0 0 24px' }}>Sua mensagem está chegando no WhatsApp dos clientes agora.</p>
-        <button onClick={onFechar} style={{ background: '#16A34A', color: 'white', border: 'none', borderRadius: 12, padding: '12px 28px', fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 14, cursor: 'pointer' }}>
-          Concluir
-        </button>
-      </div>
-    )
-  }
+  // Auto-limpa o banner de sucesso após 6 segundos
+  useEffect(() => {
+    if (!enviado) return
+    const t = setTimeout(() => setEnviado(false), 6000)
+    return () => clearTimeout(t)
+  }, [enviado])
 
   return (
     <>
@@ -857,6 +849,12 @@ function DestaqueTopForm({ isPro, onFechar }: { isPro: boolean; onFechar: () => 
             </div>
           </div>
 
+          {enviado && (
+            <div style={{ background: '#F0FDF4', border: '1px solid #BBF7D0', borderRadius: 10, padding: '10px 14px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Check size={15} color="#16A34A" />
+              <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#15803D', fontWeight: 600 }}>Destaque TOP enviado com sucesso!</span>
+            </div>
+          )}
           {erro && (
             <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, padding: '10px 14px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
               <AlertCircle size={15} color="#EF4444" />
