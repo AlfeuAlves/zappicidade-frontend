@@ -364,32 +364,34 @@ function CardStatusBot() {
   )
 }
 
+// ── Tipos dos dados reais ─────────────────────────────────────────
+interface TopComercio {
+  id: string; nome: string; total_interacoes: number; plano: string
+  categorias: { nome: string; icone: string } | null
+}
+interface AtividadeItem {
+  id: string; nome_completo: string; criado_em: string
+  status_verificacao: string; comercios: { nome: string } | null
+}
+
+function tempoRelativo(iso: string) {
+  const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)
+  if (diff < 60) return 'agora'
+  if (diff < 3600) return `há ${Math.floor(diff / 60)} min`
+  if (diff < 86400) return `há ${Math.floor(diff / 3600)}h`
+  return `há ${Math.floor(diff / 86400)} dias`
+}
+
 // ── Seção Dashboard ──────────────────────────────────────────────
 function SecaoDashboard({ stats, onNavigate }: { stats: Stats | null; onNavigate: (s: Secao) => void }) {
-  const buscasSemana = [42, 67, 55, 89, 103, 78, 95]
   const diasSemana = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom']
-  const categorias = [
-    { label: 'Restaurantes', value: 320 },
-    { label: 'Farmácias',    value: 210 },
-    { label: 'Açaí',        value: 195 },
-    { label: 'Mecânicas',   value: 140 },
-    { label: 'Salões',      value: 115 },
-    { label: 'Mercados',    value: 98 },
-  ]
-  const atividadeRecente = [
-    { icone: '👤', texto: 'Novo usuário cadastrado', tempo: 'há 3 min', cor: '#3B82F6' },
-    { icone: '🏪', texto: 'Comerciante aguardando aprovação', tempo: 'há 12 min', cor: '#F59E0B' },
-    { icone: '💳', texto: 'Pagamento aprovado — Plano Pro', tempo: 'há 28 min', cor: '#16A34A' },
-    { icone: '📍', texto: 'Novo comércio: Açaí do João', tempo: 'há 45 min', cor: '#8B5CF6' },
-    { icone: '🔔', texto: 'Broadcast enviado para 234 usuários', tempo: 'há 1h', cor: '#EC4899' },
-  ]
-  const topComercios = [
-    { nome: 'Farmácia Popular',        cat: 'Farmácias',    views: 1420, cliques: 312, conv: '22%', plano: 'Pro' },
-    { nome: 'Açaí da Praça',           cat: 'Açaí',        views: 1180, cliques: 278, conv: '24%', plano: 'Pro' },
-    { nome: 'Churrascaria Elohim',     cat: 'Restaurantes', views: 960,  cliques: 201, conv: '21%', plano: 'Basic' },
-    { nome: 'Salão da Cris',           cat: 'Salões',      views: 840,  cliques: 188, conv: '22%', plano: 'Pro' },
-    { nome: 'Supermercado Bem-Estar',  cat: 'Mercados',    views: 720,  cliques: 142, conv: '20%', plano: 'Basic' },
-  ]
+  const [topComercios, setTopComercios]     = useState<TopComercio[]>([])
+  const [atividade, setAtividade]           = useState<AtividadeItem[]>([])
+
+  useEffect(() => {
+    adminFetch<TopComercio[]>('/admin/stats/top-comercios').then(setTopComercios).catch(() => {})
+    adminFetch<AtividadeItem[]>('/admin/stats/atividade').then(setAtividade).catch(() => {})
+  }, [])
 
   return (
     <div>
@@ -493,7 +495,7 @@ function SecaoDashboard({ stats, onNavigate }: { stats: Stats | null; onNavigate
             </div>
             <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.4rem', color: '#16A34A' }}>{stats?.leads_mes ?? '—'}</span>
           </div>
-          <MiniLineChart data={buscasSemana} />
+          <MiniLineChart data={[0, 0, 0, 0, 0, 0, stats?.leads_hoje ?? 0]} />
           <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
             {diasSemana.map(d => <span key={d} style={{ fontSize: 10, color: '#9CA3AF', fontFamily: 'Inter, sans-serif' }}>{d}</span>)}
           </div>
@@ -505,7 +507,7 @@ function SecaoDashboard({ stats, onNavigate }: { stats: Stats | null; onNavigate
             <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 15, color: '#111827' }}>Categorias mais buscadas</div>
             <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#9CA3AF' }}>Hoje</div>
           </div>
-          <MiniBarChart data={categorias} />
+          <div style={{ color: '#9CA3AF', fontSize: 13, fontFamily: 'Inter, sans-serif', textAlign: 'center', padding: '24px 0' }}>Em breve</div>
         </div>
       </div>
 
@@ -519,56 +521,67 @@ function SecaoDashboard({ stats, onNavigate }: { stats: Stats | null; onNavigate
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ background: '#F9FAFB' }}>
-                {['Nome', 'Categoria', 'Views', 'Cliques', 'Conv.', 'Plano'].map(h => (
+                {['Nome', 'Categoria', 'Interações', 'Plano'].map(h => (
                   <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, color: '#9CA3AF', fontFamily: 'Poppins, sans-serif', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {topComercios.map((c, i) => (
-                <tr key={i} style={{ borderTop: '1px solid #F3F4F6' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                >
-                  <td style={{ padding: '12px 14px' }}>
-                    <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600, color: '#111827', fontSize: 13 }}>{c.nome}</div>
-                    <div style={{ width: `${(c.views / 1420) * 100}%`, height: 3, background: '#DCFCE7', borderRadius: 2, marginTop: 4 }}>
-                      <div style={{ width: '100%', height: '100%', background: '#16A34A', borderRadius: 2 }} />
-                    </div>
-                  </td>
-                  <td style={{ padding: '12px 14px', color: '#6B7280', fontFamily: 'Inter, sans-serif' }}>{c.cat}</td>
-                  <td style={{ padding: '12px 14px', fontFamily: 'Poppins, sans-serif', fontWeight: 700, color: '#111827' }}>{c.views.toLocaleString('pt-BR')}</td>
-                  <td style={{ padding: '12px 14px', color: '#6B7280', fontFamily: 'Inter, sans-serif' }}>{c.cliques}</td>
-                  <td style={{ padding: '12px 14px' }}>
-                    <span style={{ background: '#DCFCE7', color: '#16A34A', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999 }}>{c.conv}</span>
-                  </td>
-                  <td style={{ padding: '12px 14px' }}>
-                    <span style={{ background: c.plano === 'Pro' ? '#DCFCE7' : '#F3F4F6', color: c.plano === 'Pro' ? '#16A34A' : '#6B7280', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999 }}>{c.plano}</span>
-                  </td>
-                </tr>
-              ))}
+              {topComercios.length === 0 && (
+                <tr><td colSpan={5} style={{ padding: '24px 14px', textAlign: 'center', color: '#9CA3AF', fontFamily: 'Inter, sans-serif', fontSize: 13 }}>Nenhum dado ainda</td></tr>
+              )}
+              {topComercios.map((c, i) => {
+                const max = topComercios[0]?.total_interacoes || 1
+                return (
+                  <tr key={c.id} style={{ borderTop: '1px solid #F3F4F6' }}
+                    onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <td style={{ padding: '12px 14px' }}>
+                      <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600, color: '#111827', fontSize: 13 }}>{c.nome}</div>
+                      <div style={{ width: `${(c.total_interacoes / max) * 100}%`, height: 3, background: '#DCFCE7', borderRadius: 2, marginTop: 4 }}>
+                        <div style={{ width: '100%', height: '100%', background: '#16A34A', borderRadius: 2 }} />
+                      </div>
+                    </td>
+                    <td style={{ padding: '12px 14px', color: '#6B7280', fontFamily: 'Inter, sans-serif' }}>{c.categorias?.icone} {c.categorias?.nome || '—'}</td>
+                    <td style={{ padding: '12px 14px', fontFamily: 'Poppins, sans-serif', fontWeight: 700, color: '#111827' }}>{(c.total_interacoes || 0).toLocaleString('pt-BR')}</td>
+                    <td style={{ padding: '12px 14px' }}>
+                      <span style={{ background: c.plano === 'pro' ? '#DCFCE7' : c.plano === 'basic' ? '#DBEAFE' : '#F3F4F6', color: c.plano === 'pro' ? '#16A34A' : c.plano === 'basic' ? '#1D4ED8' : '#6B7280', fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 999, textTransform: 'capitalize' }}>{c.plano || 'público'}</span>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
 
         {/* Atividade recente */}
         <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 16, padding: 22 }}>
-          <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 15, color: '#111827', marginBottom: 18 }}>Atividade Recente</div>
+          <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 15, color: '#111827', marginBottom: 18 }}>Últimos Cadastros</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-            {atividadeRecente.map((a, i) => (
-              <div key={i} style={{ display: 'flex', gap: 12, paddingBottom: 14, position: 'relative' }}>
-                {i < atividadeRecente.length - 1 && (
-                  <div style={{ position: 'absolute', left: 15, top: 28, bottom: 0, width: 1, background: '#F3F4F6' }} />
-                )}
-                <div style={{ width: 30, height: 30, borderRadius: '50%', background: `${a.cor}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 14, zIndex: 1 }}>
-                  {a.icone}
+            {atividade.length === 0 && (
+              <div style={{ color: '#9CA3AF', fontSize: 13, fontFamily: 'Inter, sans-serif', textAlign: 'center', padding: '16px 0' }}>Nenhum cadastro ainda</div>
+            )}
+            {atividade.map((a, i) => {
+              const cor = a.status_verificacao === 'aprovado' ? '#16A34A' : a.status_verificacao === 'rejeitado' ? '#DC2626' : '#F59E0B'
+              const icone = a.status_verificacao === 'aprovado' ? '✅' : a.status_verificacao === 'rejeitado' ? '❌' : '⏳'
+              return (
+                <div key={a.id} style={{ display: 'flex', gap: 12, paddingBottom: 14, position: 'relative' }}>
+                  {i < atividade.length - 1 && (
+                    <div style={{ position: 'absolute', left: 15, top: 28, bottom: 0, width: 1, background: '#F3F4F6' }} />
+                  )}
+                  <div style={{ width: 30, height: 30, borderRadius: '50%', background: `${cor}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 14, zIndex: 1 }}>
+                    {icone}
+                  </div>
+                  <div>
+                    <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#111827', marginBottom: 2 }}>{a.nome_completo}</div>
+                    <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: '#9CA3AF' }}>
+                      {a.comercios?.nome ? `🏪 ${a.comercios.nome} · ` : ''}{tempoRelativo(a.criado_em)}
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#111827', marginBottom: 2 }}>{a.texto}</div>
-                  <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: '#9CA3AF' }}>{a.tempo}</div>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       </div>
