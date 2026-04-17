@@ -164,6 +164,11 @@ export default function PaginaComercio({ comercio }: Props) {
 
               <div style={{ flex: 1, minWidth: 0, paddingTop: 4 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
+                  {(comercio as any).tem_fundador_ativo && (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 3, background: '#FEF3C7', color: '#92400E', borderRadius: 99, padding: '2px 8px', fontSize: 11, fontWeight: 700, border: '1px solid #FDE68A' }}>
+                      🥇 Fundador ZappiCidade
+                    </span>
+                  )}
                   {comercio.verificado && (
                     <span style={{ display: 'flex', alignItems: 'center', gap: 3, background: '#EFF6FF', color: '#1D4ED8', borderRadius: 99, padding: '2px 8px', fontSize: 11, fontWeight: 700 }}>
                       <BadgeCheck size={11} /> Verificado

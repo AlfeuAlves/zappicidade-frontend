@@ -1043,6 +1043,281 @@ interface Assinatura {
   fim: string | null
 }
 
+// ── SecaoFundador ────────────────────────────────────────────────
+interface VagaFundador {
+  categoria_id: string
+  categoria_nome: string
+  categoria_slug: string
+  categoria_icone: string
+  maximo: number
+  tomadas: number
+  disponiveis: number
+  esgotado: boolean
+}
+interface StatusFundador {
+  tem_selo: boolean
+  prazo_encerrado: boolean
+  prazo_fim: string
+  valor: number
+  selo: {
+    id: string
+    status: string
+    beneficio_fim: string | null
+    categorias: { nome: string; slug: string; icone: string } | null
+  } | null
+}
+
+function SecaoFundador() {
+  const [status, setStatus]         = useState<StatusFundador | null>(null)
+  const [vagas, setVagas]           = useState<VagaFundador[]>([])
+  const [carregando, setCarregando] = useState(true)
+  const [checkout, setCheckout]     = useState<string | null>(null) // categoria_id selecionada
+  const [salvando, setSalvando]     = useState(false)
+  const [urlPag, setUrlPag]         = useState<string | null>(null)
+  const [erro, setErro]             = useState<string | null>(null)
+  const [verificando, setVerificando] = useState(false)
+
+  useEffect(() => {
+    const carregar = async () => {
+      try {
+        const [st, vg] = await Promise.all([
+          apiFetch<StatusFundador>('/fundador/status'),
+          apiFetch<{ vagas: VagaFundador[] }>('/fundador/vagas'),
+        ])
+        setStatus(st)
+        setVagas(vg.vagas || [])
+      } catch { /* ignora */ }
+      finally { setCarregando(false) }
+    }
+    carregar()
+  }, [])
+
+  const handleCheckout = async () => {
+    if (!checkout) return
+    setSalvando(true)
+    setErro(null)
+    try {
+      const r = await apiFetch<{ ok: boolean; url: string }>('/fundador/checkout', {
+        method: 'POST',
+        body: JSON.stringify({ categoria_id: checkout }),
+      })
+      setUrlPag(r.url)
+    } catch (err: any) {
+      setErro(err.message || 'Erro ao gerar pagamento')
+    } finally { setSalvando(false) }
+  }
+
+  const handleVerificar = async () => {
+    setVerificando(true)
+    try {
+      const r = await apiFetch<{ ativo: boolean; beneficio_fim?: string }>('/fundador/verificar')
+      if (r.ativo) {
+        const [st] = await Promise.all([apiFetch<StatusFundador>('/fundador/status')])
+        setStatus(st)
+        setUrlPag(null)
+        setCheckout(null)
+      }
+    } catch { /* ignora */ }
+    finally { setVerificando(false) }
+  }
+
+  if (carregando) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 200 }}>
+        <Loader2 size={28} color="#F59E0B" style={{ animation: 'spin 1s linear infinite' }} />
+      </div>
+    )
+  }
+
+  const prazoFim = status ? new Date(status.prazo_fim) : new Date('2026-06-16T23:59:59-03:00')
+  const diasRestantes = Math.max(0, Math.ceil((prazoFim.getTime() - Date.now()) / 86400000))
+
+  // Se já tem selo ativo
+  if (status?.selo?.status === 'ativo') {
+    const fim = status.selo.beneficio_fim ? new Date(status.selo.beneficio_fim) : null
+    const diasBeneficio = fim ? Math.max(0, Math.ceil((fim.getTime() - Date.now()) / 86400000)) : 0
+    return (
+      <div style={{ maxWidth: 640 }}>
+        <div style={{ background: 'linear-gradient(135deg, #78350F, #92400E)', borderRadius: 24, padding: '32px', textAlign: 'center' }}>
+          <div style={{ fontSize: 56, marginBottom: 12 }}>🥇</div>
+          <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: 22, color: '#FEF3C7', marginBottom: 8 }}>
+            Você é um Fundador!
+          </div>
+          <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: 'rgba(254,243,199,0.8)', marginBottom: 20 }}>
+            Categoria: {status.selo.categorias?.icone} {status.selo.categorias?.nome}
+          </div>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+            <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 20px', textAlign: 'center' }}>
+              <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: 24, color: '#FDE68A' }}>{diasBeneficio}</div>
+              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: 'rgba(254,243,199,0.7)' }}>dias de benefício</div>
+            </div>
+            <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 20px', textAlign: 'center' }}>
+              <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: 14, color: '#FDE68A' }}>Topo da busca</div>
+              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: 'rgba(254,243,199,0.7)' }}>sempre no 1º lugar</div>
+            </div>
+            <div style={{ background: 'rgba(255,255,255,0.1)', borderRadius: 12, padding: '12px 20px', textAlign: 'center' }}>
+              <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: 14, color: '#FDE68A' }}>🥇 Vitalício</div>
+              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: 'rgba(254,243,199,0.7)' }}>badge permanente</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Aguardando pagamento
+  if (urlPag) {
+    return (
+      <div style={{ maxWidth: 540 }}>
+        <div style={{ background: '#FFFBEB', border: '2px solid #FDE68A', borderRadius: 20, padding: 28, textAlign: 'center' }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>💳</div>
+          <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 18, color: '#92400E', marginBottom: 8 }}>
+            Finalize o pagamento
+          </div>
+          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#78350F', marginBottom: 20 }}>
+            Clique abaixo para pagar via PIX, cartão ou boleto. Após confirmar, volte aqui e clique em "Já paguei".
+          </p>
+          <a href={urlPag} target="_blank" rel="noreferrer" style={{
+            display: 'block', background: '#F59E0B', color: '#111827',
+            fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 15,
+            borderRadius: 12, padding: '14px 24px', textDecoration: 'none', marginBottom: 12,
+          }}>
+            Ir para pagamento →
+          </a>
+          <button onClick={handleVerificar} disabled={verificando} style={{
+            background: 'transparent', border: '2px solid #D97706', borderRadius: 12,
+            color: '#92400E', fontFamily: 'Poppins, sans-serif', fontWeight: 600,
+            fontSize: 14, padding: '12px 24px', cursor: verificando ? 'not-allowed' : 'pointer', width: '100%',
+          }}>
+            {verificando ? 'Verificando...' : 'Já paguei — verificar'}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Prazo encerrado
+  if (status?.prazo_encerrado) {
+    return (
+      <div style={{ maxWidth: 540 }}>
+        <div style={{ background: '#F3F4F6', border: '2px solid #E5E7EB', borderRadius: 20, padding: 28, textAlign: 'center' }}>
+          <div style={{ fontSize: 40, marginBottom: 12 }}>🔒</div>
+          <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 18, color: '#6B7280' }}>
+            Período Fundador encerrado
+          </div>
+          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#9CA3AF', marginTop: 8 }}>
+            As vagas de Fundador estavam disponíveis até 16/06/2026.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  // Tela principal — lista de categorias
+  return (
+    <div style={{ maxWidth: 900 }}>
+      {/* Banner explicativo */}
+      <div style={{ background: 'linear-gradient(135deg, #78350F, #B45309)', borderRadius: 20, padding: '24px 28px', marginBottom: 28 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+          <div style={{ fontSize: 52, flexShrink: 0 }}>🥇</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: 20, color: '#FEF3C7', marginBottom: 6 }}>
+              Seja um dos primeiros — Fundador {diasRestantes > 0 ? `(${diasRestantes} dias restantes)` : ''}
+            </div>
+            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: 'rgba(254,243,199,0.85)', margin: 0, lineHeight: 1.6 }}>
+              Apenas <strong style={{ color: '#FDE68A' }}>2 vagas por categoria</strong>. Pagamento único de <strong style={{ color: '#FDE68A' }}>R$197</strong>. Seu comércio aparece sempre no topo das buscas por 6 meses + badge 🥇 vitalício no perfil. Depois que as vagas acabarem, esta opção some para sempre.
+            </p>
+          </div>
+          <div style={{ background: 'rgba(255,255,255,0.12)', borderRadius: 14, padding: '12px 20px', textAlign: 'center', flexShrink: 0 }}>
+            <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: 26, color: '#FDE68A' }}>R$197</div>
+            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: 'rgba(254,243,199,0.7)' }}>pagamento único</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Benefícios em linha */}
+      <div style={{ display: 'flex', gap: 12, marginBottom: 28, flexWrap: 'wrap' }}>
+        {[
+          { icon: '🏆', titulo: 'Topo da busca', sub: '6 meses de ranking prioritário' },
+          { icon: '🥇', titulo: 'Badge vitalício', sub: 'Aparece no perfil para sempre' },
+          { icon: '📣', titulo: 'Social proof', sub: '"Fundador do ZappiCidade"' },
+          { icon: '🔒', titulo: 'Máx. 2 por cat.', sub: 'Exclusividade garantida' },
+        ].map(b => (
+          <div key={b.titulo} style={{ flex: '1 1 180px', background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 14, padding: '14px 16px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+            <span style={{ fontSize: 24 }}>{b.icon}</span>
+            <div>
+              <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 13, color: '#111827' }}>{b.titulo}</div>
+              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#6B7280' }}>{b.sub}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Seleção de categoria */}
+      <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 20, padding: '24px 28px' }}>
+        <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 16, color: '#111827', marginBottom: 4 }}>
+          Escolha sua categoria
+        </div>
+        <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#6B7280', margin: '0 0 20px' }}>
+          Selecione a categoria em que seu negócio compete. Você garante posição de destaque exclusiva nela.
+        </p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10, marginBottom: 24 }}>
+          {vagas.map(v => {
+            const selecionada = checkout === v.categoria_id
+            const esgotado    = v.esgotado
+            return (
+              <button
+                key={v.categoria_id}
+                disabled={esgotado}
+                onClick={() => !esgotado && setCheckout(v.categoria_id)}
+                style={{
+                  padding: '12px 14px', borderRadius: 12, cursor: esgotado ? 'not-allowed' : 'pointer',
+                  border: `2px solid ${selecionada ? '#D97706' : esgotado ? '#F3F4F6' : '#E5E7EB'}`,
+                  background: selecionada ? '#FEF3C7' : esgotado ? '#F9FAFB' : 'white',
+                  display: 'flex', alignItems: 'center', gap: 10, textAlign: 'left',
+                  opacity: esgotado ? 0.6 : 1, transition: 'all 0.15s',
+                }}>
+                <span style={{ fontSize: 22 }}>{v.categoria_icone}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: 13, color: esgotado ? '#9CA3AF' : '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {v.categoria_nome}
+                  </div>
+                  <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: esgotado ? '#EF4444' : '#16A34A', fontWeight: 600, marginTop: 2 }}>
+                    {esgotado ? 'Esgotado' : `${v.disponiveis} vaga${v.disponiveis !== 1 ? 's' : ''}`}
+                  </div>
+                </div>
+                {selecionada && <Check size={16} color="#D97706" style={{ flexShrink: 0 }} />}
+              </button>
+            )
+          })}
+        </div>
+
+        {erro && (
+          <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#DC2626' }}>
+            {erro}
+          </div>
+        )}
+
+        <button
+          onClick={handleCheckout}
+          disabled={!checkout || salvando}
+          style={{
+            background: checkout && !salvando ? '#F59E0B' : '#E5E7EB',
+            color: checkout && !salvando ? '#111827' : '#9CA3AF',
+            border: 'none', borderRadius: 14, padding: '16px 32px',
+            fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 15,
+            cursor: checkout && !salvando ? 'pointer' : 'not-allowed',
+            display: 'flex', alignItems: 'center', gap: 10, transition: 'all 0.15s',
+          }}>
+          {salvando ? <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> : <Crown size={18} />}
+          {salvando ? 'Gerando...' : `Garantir minha vaga — R$197`}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ── SecaoDestaqueTop ─────────────────────────────────────────────
 function SecaoDestaqueTop() {
   const [isPro, setIsPro] = useState(false)
@@ -1095,10 +1370,10 @@ function SecaoDestaqueTop() {
 
 const PLANO_INFO: Record<string, { label: string; preco: string; periodo: string; recursos: string[] }> = {
   basico:      { label: 'Básico',       preco: 'R$ 0',      periodo: 'grátis',   recursos: ['Perfil básico do negócio', 'Aparece nas buscas do Zappi', 'Horários de funcionamento', 'QR Code básico'] },
-  pro_mensal:  { label: 'PRO Mensal',   preco: 'R$59,90',   periodo: '/mês',     recursos: ['Galeria de 4 fotos', 'Destaque nas buscas', 'Promoções ilimitadas', '📣 Destaque TOP incluso', 'Analytics completo'] },
-  pro_3meses:  { label: 'PRO 3 Meses', preco: 'R$149,90',  periodo: '/3 meses', recursos: ['Galeria de 4 fotos', 'Destaque nas buscas', 'Promoções ilimitadas', '📣 Destaque TOP incluso', 'Analytics completo'] },
-  pro_6meses:  { label: 'PRO 6 Meses', preco: 'R$269,90',  periodo: '/6 meses', recursos: ['Galeria de 4 fotos', 'Destaque nas buscas', 'Promoções ilimitadas', '📣 Destaque TOP incluso', 'Analytics completo'] },
-  pro_12meses: { label: 'PRO 12 Meses', preco: 'R$479,90', periodo: '/12 meses', recursos: ['Galeria de 4 fotos', 'Destaque nas buscas', 'Promoções ilimitadas', '📣 Destaque TOP incluso', 'Analytics completo'] },
+  pro_mensal:  { label: 'PRO Mensal',   preco: 'R$59,90',   periodo: '/mês',     recursos: ['Galeria de 4 fotos', 'Destaque nas buscas', 'Promoções ilimitadas', '📣 Destaque TOP incluso', 'Analytics completo', '🥇 Elegível ao Selo Fundador'] },
+  pro_3meses:  { label: 'PRO 3 Meses', preco: 'R$149,90',  periodo: '/3 meses', recursos: ['Galeria de 4 fotos', 'Destaque nas buscas', 'Promoções ilimitadas', '📣 Destaque TOP incluso', 'Analytics completo', '🥇 Elegível ao Selo Fundador'] },
+  pro_6meses:  { label: 'PRO 6 Meses', preco: 'R$269,90',  periodo: '/6 meses', recursos: ['Galeria de 4 fotos', 'Destaque nas buscas', 'Promoções ilimitadas', '📣 Destaque TOP incluso', 'Analytics completo', '🥇 Elegível ao Selo Fundador'] },
+  pro_12meses: { label: 'PRO 12 Meses', preco: 'R$479,90', periodo: '/12 meses', recursos: ['Galeria de 4 fotos', 'Destaque nas buscas', 'Promoções ilimitadas', '📣 Destaque TOP incluso', 'Analytics completo', '🥇 Elegível ao Selo Fundador'] },
 }
 
 function SecaoFaturamento() {
@@ -1679,6 +1954,7 @@ export default function DashboardPage() {
     { id: 'dashboard',    icon: <LayoutDashboard size={18} />, label: 'Visão Geral' },
     { id: 'campanhas',    icon: <Megaphone size={18} />,       label: 'Campanhas' },
     { id: 'destaque_top', icon: <Zap size={18} />,             label: 'Destaque TOP', badge: 'PRO' },
+    { id: 'fundador',     icon: <Crown size={18} />,           label: 'Selo Fundador', badge: 'NOVO' },
     { id: 'perfil',       icon: <Store size={18} />,           label: 'Meu Negócio' },
     { id: 'leads',        icon: <Users size={18} />,           label: 'Clientes' },
     { id: 'faturamento',  icon: <CreditCard size={18} />,      label: 'Faturamento' },
@@ -1687,6 +1963,7 @@ export default function DashboardPage() {
   const titulos: Record<string, string> = {
     dashboard: 'Visão Geral', campanhas: 'Campanhas & Anúncios',
     destaque_top: 'Destaque TOP',
+    fundador: 'Selo Fundador',
     perfil: 'Meu Negócio', leads: 'Clientes', faturamento: 'Faturamento',
   }
 
@@ -1868,6 +2145,7 @@ export default function DashboardPage() {
             {seção === 'dashboard'   && <SecaoDashboard dados={dados} comerciante={comerciante} aprovado={statusVerificacao === 'aprovado'} onCriarAnuncio={() => { if (statusVerificacao !== 'aprovado') { mostrarToast('Aguarde a aprovação da sua conta pelo administrador.', 'erro'); return } setModalAnuncio(true) }} onVenderAgora={() => { if (statusVerificacao !== 'aprovado') { mostrarToast('Aguarde a aprovação da sua conta pelo administrador.', 'erro'); return } setModalVender(true) }} />}
             {seção === 'campanhas'    && <SecaoCampanhas dados={dados} aprovado={statusVerificacao === 'aprovado'} onCriarAnuncio={() => { if (statusVerificacao !== 'aprovado') { mostrarToast('Aguarde a aprovação da sua conta pelo administrador.', 'erro'); return } setModalAnuncio(true) }} />}
             {seção === 'destaque_top' && <SecaoDestaqueTop />}
+            {seção === 'fundador'     && <SecaoFundador />}
             {seção === 'perfil'       && <SecaoMeuNegocio />}
             {seção === 'faturamento' && <SecaoFaturamento />}
             {seção === 'leads' && (
