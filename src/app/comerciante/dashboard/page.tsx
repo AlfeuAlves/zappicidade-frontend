@@ -239,17 +239,22 @@ function ModalVenderAgora({ onClose, onSalvar }: { onClose: () => void; onSalvar
 }
 
 // ── Modal Criar Anúncio (3 passos) ───────────────────────────────
-function ModalCriarAnuncio({ onClose }: { onClose: () => void }) {
+function ModalCriarAnuncio({ onClose, onSalvo }: { onClose: () => void; onSalvo?: () => void }) {
   const [passo, setPasso] = useState(1)
   const [tipo, setTipo] = useState('')
   const [nome, setNome] = useState('')
   const [preco, setPreco] = useState('')
+  const [desconto, setDesconto] = useState('')
   const [descricao, setDesc] = useState('')
   const [duracao, setDuracao] = useState('7 dias')
+  const [imagem, setImagem] = useState<string | null>(null)
+  const [imgPreview, setImgPreview] = useState<string | null>(null)
   const [salvando, setSalvando] = useState(false)
+  const [erro, setErro] = useState('')
+  const fileRef = useRef<HTMLInputElement>(null)
 
   const tipos = [
-    { id: 'destaque', icon: <Star size={22} color="#F59E0B" />, label: 'Destaque Top', desc: 'Apareça no topo das buscas da cidade', bg: '#FEF3C7', cor: '#F59E0B' },
+    { id: 'vitrine', icon: <ImageIcon size={22} color="#16A34A" />, label: 'Promoção na Vitrine', desc: 'Aparece no perfil e na busca com imagem do produto', bg: '#DCFCE7', cor: '#16A34A' },
     { id: 'banner', icon: <ImageIcon size={22} color="#3B82F6" />, label: 'Banner Visual', desc: 'Banner destacado na página da categoria', bg: '#DBEAFE', cor: '#3B82F6' },
     { id: 'ia', icon: <Sparkles size={22} color="#8B5CF6" />, label: 'IA Recomenda', desc: 'A IA cria o anúncio ideal para você', bg: '#EDE9FE', cor: '#8B5CF6' },
   ]
@@ -260,11 +265,52 @@ function ModalCriarAnuncio({ onClose }: { onClose: () => void }) {
     { label: '30 dias', sub: 'Máximo alcance' },
   ]
 
+  const handleImagem = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = ev => {
+      const b64 = ev.target?.result as string
+      setImagem(b64)
+      setImgPreview(b64)
+    }
+    reader.readAsDataURL(file)
+  }
+
   const salvar = async () => {
+    if (tipo !== 'vitrine') { onClose(); return }
     setSalvando(true)
-    await new Promise(r => setTimeout(r, 800))
-    setSalvando(false)
-    onClose()
+    setErro('')
+    try {
+      let imagem_url: string | undefined
+      if (imagem) {
+        const r = await apiFetch<{ url: string }>('/comerciante/upload/promocao', {
+          method: 'POST',
+          body: JSON.stringify({ base64: imagem, extensao: 'jpg' }),
+        })
+        imagem_url = r.url
+      }
+      const diasMap: Record<string, number> = { '3 dias': 3, '7 dias': 7, '15 dias': 15, '30 dias': 30 }
+      const fim = new Date(Date.now() + (diasMap[duracao] || 7) * 86400000).toISOString()
+      await apiFetch('/comerciante/promocoes', {
+        method: 'POST',
+        body: JSON.stringify({
+          titulo: nome,
+          descricao: descricao || undefined,
+          tipo: 'outro',
+          preco_de: preco ? Number(preco) : undefined,
+          percentual_desconto: desconto ? Number(desconto) : undefined,
+          imagem_url,
+          fim,
+        }),
+      })
+      onSalvo?.()
+      onClose()
+    } catch (e: any) {
+      setErro(e?.message || 'Erro ao publicar. Tente novamente.')
+    } finally {
+      setSalvando(false)
+    }
   }
 
   return (
@@ -317,9 +363,34 @@ function ModalCriarAnuncio({ onClose }: { onClose: () => void }) {
               <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '1rem', color: '#111827', marginBottom: 6 }}>Dados do Produto</div>
               <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#9CA3AF', marginBottom: 20 }}>O que você quer anunciar?</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+                {/* Upload de imagem — só para Promoção na Vitrine */}
+                {tipo === 'vitrine' && (
+                  <div>
+                    <label style={{ display:'block', fontSize:11, fontWeight:700, color:'#374151', fontFamily:'Poppins, sans-serif', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:8 }}>Foto do produto</label>
+                    <input ref={fileRef} type="file" accept="image/*" style={{ display:'none' }} onChange={handleImagem} />
+                    {imgPreview ? (
+                      <div style={{ position:'relative', borderRadius:12, overflow:'hidden', border:'1.5px solid #E5E7EB' }}>
+                        <img src={imgPreview} alt="preview" style={{ width:'100%', height:140, objectFit:'cover', display:'block' }} />
+                        <button onClick={() => { setImagem(null); setImgPreview(null) }}
+                          style={{ position:'absolute', top:8, right:8, background:'rgba(0,0,0,0.55)', border:'none', borderRadius:8, color:'white', padding:'4px 10px', fontSize:12, cursor:'pointer', fontFamily:'Inter, sans-serif' }}>
+                          Trocar
+                        </button>
+                      </div>
+                    ) : (
+                      <button onClick={() => fileRef.current?.click()}
+                        style={{ width:'100%', height:100, border:'2px dashed #D1FAE5', borderRadius:12, background:'#F0FDF4', cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:6, color:'#16A34A', fontFamily:'Inter, sans-serif', fontSize:13 }}>
+                        <ImageIcon size={22} color="#16A34A" />
+                        Clique para enviar foto
+                      </button>
+                    )}
+                  </div>
+                )}
+
                 {[
-                  { label: 'Nome do produto', val: nome, set: setNome, ph: 'Ex: Corte + Barba, Açaí 500ml...', type: 'text' },
-                  { label: 'Preço (R$)', val: preco, set: setPreco, ph: '0,00', type: 'number' },
+                  { label: 'Nome do produto / promoção', val: nome, set: setNome, ph: 'Ex: Corte + Barba, Açaí 500ml...', type: 'text' },
+                  { label: 'Preço original (R$)', val: preco, set: setPreco, ph: '0,00', type: 'number' },
+                  { label: 'Desconto (%)', val: desconto, set: setDesconto, ph: 'Ex: 20', type: 'number' },
                 ].map(f => (
                   <div key={f.label}>
                     <label style={{ display:'block', fontSize:11, fontWeight:700, color:'#374151', fontFamily:'Poppins, sans-serif', textTransform:'uppercase', letterSpacing:'0.07em', marginBottom:8 }}>{f.label}</label>
@@ -334,6 +405,8 @@ function ModalCriarAnuncio({ onClose }: { onClose: () => void }) {
                     style={{ width:'100%', padding:'12px 14px', boxSizing:'border-box', border:'1.5px solid #E5E7EB', borderRadius:12, fontSize:14, fontFamily:'Inter, sans-serif', outline:'none', resize:'none', transition:'border-color 0.15s' }}
                     onFocus={e => e.target.style.borderColor = '#16A34A'} onBlur={e => e.target.style.borderColor = '#E5E7EB'} />
                 </div>
+
+                {erro && <div style={{ background:'#FEF2F2', border:'1px solid #FECACA', borderRadius:10, padding:'10px 14px', fontSize:13, color:'#DC2626', fontFamily:'Inter, sans-serif' }}>{erro}</div>}
               </div>
             </>
           )}
@@ -356,7 +429,7 @@ function ModalCriarAnuncio({ onClose }: { onClose: () => void }) {
               </div>
               <div style={{ background: '#F9FAFB', borderRadius: 16, padding: '16px 18px' }}>
                 <div style={{ fontFamily:'Poppins, sans-serif', fontWeight:700, fontSize:13, color:'#111827', marginBottom:12 }}>Resumo</div>
-                {[['Tipo', tipos.find(t => t.id === tipo)?.label || tipo], ['Produto', nome || '—'], ['Preço', preco ? `R$${preco}` : '—'], ['Duração', duracao]].map(([k, v]) => (
+                {[['Tipo', tipos.find(t => t.id === tipo)?.label || tipo], ['Produto', nome || '—'], ['Preço', preco ? `R$ ${preco}` : '—'], ['Desconto', desconto ? `${desconto}%` : '—'], ['Duração', duracao]].map(([k, v]) => (
                   <div key={k} style={{ display:'flex', justifyContent:'space-between', fontSize:13, fontFamily:'Inter, sans-serif', marginBottom:8 }}>
                     <span style={{ color:'#9CA3AF' }}>{k}</span>
                     <span style={{ color:'#111827', fontWeight:600 }}>{v}</span>
@@ -2212,7 +2285,7 @@ export default function DashboardPage() {
 
       {/* Modais */}
       {modalVender  && <ModalVenderAgora  onClose={() => setModalVender(false)}  onSalvar={(r: any) => { setModalVender(false); if (r?.sucesso) { mostrarToast('⚡ Promoção ativada! Já aparece para clientes da cidade.'); recarregarDados() } else { mostrarToast(r?.erro || 'Erro ao ativar promoção. Tente novamente.', 'erro') } }} />}
-      {modalAnuncio && <ModalCriarAnuncio onClose={() => setModalAnuncio(false)} />}
+      {modalAnuncio && <ModalCriarAnuncio onClose={() => setModalAnuncio(false)} onSalvo={() => { mostrarToast('✅ Promoção publicada! Já aparece no perfil do seu estabelecimento.'); recarregarDados() }} />}
 
       <style>{`
         @keyframes spin { to { transform: rotate(360deg) } }
