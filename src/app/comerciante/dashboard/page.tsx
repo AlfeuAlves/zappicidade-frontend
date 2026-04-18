@@ -406,7 +406,6 @@ function ModalCriarAnuncio({ onClose, onSalvo }: { onClose: () => void; onSalvo?
                     onFocus={e => e.target.style.borderColor = '#16A34A'} onBlur={e => e.target.style.borderColor = '#E5E7EB'} />
                 </div>
 
-                {erro && <div style={{ background:'#FEF2F2', border:'1px solid #FECACA', borderRadius:10, padding:'10px 14px', fontSize:13, color:'#DC2626', fontFamily:'Inter, sans-serif' }}>{erro}</div>}
               </div>
             </>
           )}
@@ -437,6 +436,12 @@ function ModalCriarAnuncio({ onClose, onSalvo }: { onClose: () => void; onSalvo?
                 ))}
               </div>
             </>
+          )}
+
+          {erro && (
+            <div style={{ background:'#FEF2F2', border:'1px solid #FECACA', borderRadius:10, padding:'10px 14px', fontSize:13, color:'#DC2626', fontFamily:'Inter, sans-serif', marginTop: 16 }}>
+              {erro}
+            </div>
           )}
 
           <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
