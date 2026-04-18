@@ -378,14 +378,16 @@ function ModalCriarAnuncio({ onClose, onSalvo }: { onClose: () => void; onSalvo?
                         </button>
                       </div>
                     ) : (
-                      <button onClick={() => fileRef.current?.click()}
-                        style={{ width:'100%', height:100, border:'2px dashed #D1FAE5', borderRadius:12, background:'#F0FDF4', cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:6, color:'#16A34A', fontFamily:'Inter, sans-serif', fontSize:13 }}>
-                        <ImageIcon size={22} color="#16A34A" />
-                        Clique para enviar foto
-                      </button>
-                    <div style={{ fontSize:11, color:'#9CA3AF', fontFamily:'Inter, sans-serif', marginTop:6, textAlign:'center' }}>
-                      📐 Proporção ideal: <strong>16:9</strong> (ex: 1280×720px) — evita cortes na exibição
-                    </div>
+                      <>
+                        <button onClick={() => fileRef.current?.click()}
+                          style={{ width:'100%', height:100, border:'2px dashed #D1FAE5', borderRadius:12, background:'#F0FDF4', cursor:'pointer', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:6, color:'#16A34A', fontFamily:'Inter, sans-serif', fontSize:13 }}>
+                          <ImageIcon size={22} color="#16A34A" />
+                          Clique para enviar foto
+                        </button>
+                        <div style={{ fontSize:11, color:'#9CA3AF', fontFamily:'Inter, sans-serif', marginTop:6, textAlign:'center' }}>
+                          📐 Proporção ideal: <strong>16:9</strong> (ex: 1280×720px) — evita cortes na exibição
+                        </div>
+                      </>
                     )}
                   </div>
                 )}
