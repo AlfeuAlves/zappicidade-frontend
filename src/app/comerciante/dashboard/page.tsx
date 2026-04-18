@@ -383,6 +383,9 @@ function ModalCriarAnuncio({ onClose, onSalvo }: { onClose: () => void; onSalvo?
                         <ImageIcon size={22} color="#16A34A" />
                         Clique para enviar foto
                       </button>
+                    <div style={{ fontSize:11, color:'#9CA3AF', fontFamily:'Inter, sans-serif', marginTop:6, textAlign:'center' }}>
+                      📐 Proporção ideal: <strong>16:9</strong> (ex: 1280×720px) — evita cortes na exibição
+                    </div>
                     )}
                   </div>
                 )}
