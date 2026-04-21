@@ -1820,7 +1820,9 @@ function SecaoMeuNegocio() {
   const [emailComercio, setEmailComercio] = useState('')
   const [endereco, setEndereco] = useState('')
   const [categoriaId, setCategoriaId] = useState('')
-  const [horarios, setHorarios] = useState<Record<string,{aberto:string;fechado:string;aberto_flag:boolean}>>({})
+  const [horarios, setHorarios] = useState<Record<string,{aberto:string;fechado:string;aberto_flag:boolean}>>(
+    Object.fromEntries(DIAS.map(d => [d, { aberto: '08:00', fechado: '18:00', aberto_flag: d !== 'domingo' }]))
+  )
   const [capaPreview, setCapaPreview] = useState('')
   const [capaCropB64, setCapaCropB64] = useState<string|null>(null)
   const [cropSrc, setCropSrc] = useState<string|null>(null)
