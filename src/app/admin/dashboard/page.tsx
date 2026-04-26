@@ -7,7 +7,7 @@ import {
   BarChart2, Tag, Bell, Settings, LogOut, Search, RefreshCw,
   Check, X, ChevronRight, ShieldCheck, MessageCircle, AlertTriangle,
   Clock, CheckCircle2, TrendingUp, Plus, Pencil, Trash2,
-  Activity, Zap, ChevronDown, MapPin,
+  Activity, Zap, ChevronDown, MapPin, Send, Eye, EyeOff, Loader2,
 } from 'lucide-react'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
@@ -859,6 +859,215 @@ function SecaoNotificacoes({ pendentes }: { pendentes: number }) {
   )
 }
 
+// ── Seção Configurações ──────────────────────────────────────────
+function SecaoConfiguracoes() {
+  const [preview, setPreview] = useState<{ total_com_whatsapp: number; ja_contatados: number; pendentes: number; ultimo_envio: string | null } | null>(null)
+  const [limite, setLimite]   = useState(20)
+  const [delayMs, setDelayMs] = useState(8000)
+  const [enviando, setEnviando] = useState(false)
+  const [resultado, setResultado] = useState<{ enviados: number; falhas: number; total_candidatos: number; mensagem?: string } | null>(null)
+  const [erro, setErro]         = useState<string | null>(null)
+  const [msgPreview, setMsgPreview] = useState(false)
+  const [loadingPreview, setLoadingPreview] = useState(true)
+
+  const carregarPreview = async () => {
+    setLoadingPreview(true)
+    try { setPreview(await adminFetch<any>('/admin/prospeccao/preview')) }
+    catch { } finally { setLoadingPreview(false) }
+  }
+
+  useEffect(() => { carregarPreview() }, [])
+
+  const iniciarEnvio = async () => {
+    if (!window.confirm(`Confirmar envio para até ${limite} estabelecimentos com intervalo de ${delayMs / 1000}s entre cada mensagem?`)) return
+    setEnviando(true); setResultado(null); setErro(null)
+    try {
+      const r = await adminFetch<any>('/admin/prospeccao/iniciar', {
+        method: 'POST',
+        body: JSON.stringify({ limite, delay_ms: delayMs }),
+      })
+      setResultado(r)
+      carregarPreview()
+    } catch (e: any) { setErro(e.message) } finally { setEnviando(false) }
+  }
+
+  const mensagemExemplo = `Olá! 👋
+
+Somos o *ZappiCidade*, o assistente digital de Barcarena pelo WhatsApp com IA.
+
+Boa notícia: *[Nome do Estabelecimento]* já está cadastrado e aparecendo nas buscas dos moradores! 🎉
+
+📍 Veja seu perfil:
+https://zappicidade-site.vercel.app/c/[slug]
+
+━━━━━━━━━━━━━━━━━
+🤖 *Como funciona?*
+
+Moradores mandam mensagem pro nosso bot e perguntam:
+• _"Onde tem [categoria] em Barcarena?"_
+
+A IA responde na hora com os melhores — incluindo o seu! 🏪
+
+👉 Teste agora: https://wa.me/559193870599?text=Oi
+━━━━━━━━━━━━━━━━━
+
+Com uma conta gratuita:
+✅ Edite horários de funcionamento
+✅ Adicione foto e descrição
+✅ Receba mais clientes
+
+👉 Ativar conta (grátis):
+https://zappicidade-painel.vercel.app/comerciante/login
+
+— Equipe ZappiCidade`
+
+  const card = (valor: number | string, label: string, cor: string) => (
+    <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 16, padding: '20px 24px', flex: 1, minWidth: 140 }}>
+      <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.75rem', color: cor }}>{valor}</div>
+      <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#6B7280', marginTop: 4 }}>{label}</div>
+    </div>
+  )
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+      {/* Header */}
+      <div>
+        <h2 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.5rem', color: '#111827', marginBottom: 4 }}>Prospecção Diária</h2>
+        <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#6B7280' }}>
+          Envie mensagens via WhatsApp apresentando o ZappiCidade para os estabelecimentos cadastrados.
+        </p>
+      </div>
+
+      {/* Stats */}
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+        {loadingPreview ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#9CA3AF', fontFamily: 'Inter, sans-serif', fontSize: 14 }}>
+            <Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Carregando estatísticas...
+          </div>
+        ) : preview ? (
+          <>
+            {card(preview.total_com_whatsapp, 'Com WhatsApp', '#111827')}
+            {card(preview.ja_contatados, 'Já contatados', '#16A34A')}
+            {card(preview.pendentes, 'Pendentes', '#F59E0B')}
+            {card(preview.ultimo_envio ? new Date(preview.ultimo_envio).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—', 'Último envio', '#6B7280')}
+          </>
+        ) : null}
+      </div>
+
+      {/* Painel de controle */}
+      <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 20, padding: 28 }}>
+        <h3 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '1rem', color: '#111827', marginBottom: 20, marginTop: 0 }}>
+          Configurar Envio
+        </h3>
+
+        <div style={{ display: 'flex', gap: 20, flexWrap: 'wrap', marginBottom: 24 }}>
+          <div style={{ flex: 1, minWidth: 180 }}>
+            <label style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 8 }}>
+              Limite por execução (1–50)
+            </label>
+            <input
+              type="number" min={1} max={50} value={limite}
+              onChange={e => setLimite(Math.min(50, Math.max(1, parseInt(e.target.value) || 1)))}
+              style={{ width: '100%', padding: '10px 14px', boxSizing: 'border-box', border: '1.5px solid #E5E7EB', borderRadius: 10, fontSize: 14, fontFamily: 'Inter, sans-serif', color: '#111827', outline: 'none' }}
+              onFocus={e => (e.target.style.borderColor = '#16A34A')}
+              onBlur={e => (e.target.style.borderColor = '#E5E7EB')}
+            />
+          </div>
+          <div style={{ flex: 1, minWidth: 180 }}>
+            <label style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 600, color: '#374151', display: 'block', marginBottom: 8 }}>
+              Intervalo entre mensagens (seg)
+            </label>
+            <select
+              value={delayMs}
+              onChange={e => setDelayMs(parseInt(e.target.value))}
+              style={{ width: '100%', padding: '10px 14px', boxSizing: 'border-box', border: '1.5px solid #E5E7EB', borderRadius: 10, fontSize: 14, fontFamily: 'Inter, sans-serif', color: '#111827', outline: 'none', background: 'white' }}
+            >
+              <option value={5000}>5 segundos (rápido)</option>
+              <option value={8000}>8 segundos (padrão)</option>
+              <option value={15000}>15 segundos (seguro)</option>
+              <option value={30000}>30 segundos (muito seguro)</option>
+              <option value={45000}>45 segundos (máximo seguro)</option>
+            </select>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <button
+            onClick={iniciarEnvio}
+            disabled={enviando || (preview?.pendentes ?? 0) === 0}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              background: enviando || (preview?.pendentes ?? 0) === 0 ? '#D1FAE5' : '#16A34A',
+              color: enviando || (preview?.pendentes ?? 0) === 0 ? '#6B7280' : 'white',
+              border: 'none', borderRadius: 999, padding: '11px 24px',
+              fontSize: 14, fontWeight: 700, fontFamily: 'Poppins, sans-serif',
+              cursor: enviando || (preview?.pendentes ?? 0) === 0 ? 'not-allowed' : 'pointer',
+              boxShadow: enviando ? 'none' : '0 4px 14px rgba(22,163,74,0.3)',
+              transition: 'all 0.15s',
+            }}
+          >
+            {enviando ? <Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} /> : <Send size={15} />}
+            {enviando ? `Enviando (aguarde ~${Math.round(limite * delayMs / 60000)} min)...` : `Iniciar envio — ${limite} mensagens`}
+          </button>
+
+          <button
+            onClick={() => setMsgPreview(v => !v)}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'transparent', border: '1.5px solid #E5E7EB', borderRadius: 999, padding: '10px 18px', fontSize: 13, fontWeight: 600, fontFamily: 'Inter, sans-serif', cursor: 'pointer', color: '#6B7280' }}
+          >
+            {msgPreview ? <EyeOff size={14} /> : <Eye size={14} />}
+            {msgPreview ? 'Ocultar' : 'Ver'} mensagem
+          </button>
+        </div>
+
+        {enviando && (
+          <div style={{ marginTop: 16, background: '#F0FDF4', border: '1.5px solid #BBF7D0', borderRadius: 12, padding: '12px 16px', fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#16A34A' }}>
+            ⏳ Enviando com intervalo de {delayMs / 1000}s entre cada mensagem. Não feche esta janela.
+          </div>
+        )}
+      </div>
+
+      {/* Preview da mensagem */}
+      {msgPreview && (
+        <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 20, padding: 28 }}>
+          <h3 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '1rem', color: '#111827', marginBottom: 16, marginTop: 0 }}>
+            Prévia da Mensagem
+          </h3>
+          <div style={{ background: '#F0FDF4', border: '1.5px solid #BBF7D0', borderRadius: 14, padding: '16px 20px', fontFamily: 'monospace', fontSize: 13, color: '#111827', whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>
+            {mensagemExemplo}
+          </div>
+          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#9CA3AF', marginTop: 10 }}>
+            * [Nome do Estabelecimento], [categoria] e [slug] são personalizados automaticamente para cada estabelecimento.
+          </p>
+        </div>
+      )}
+
+      {/* Resultado */}
+      {resultado && (
+        <div style={{ background: resultado.falhas === 0 ? '#F0FDF4' : '#FEF3C7', border: `1.5px solid ${resultado.falhas === 0 ? '#BBF7D0' : '#FDE68A'}`, borderRadius: 16, padding: '20px 24px' }}>
+          <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '1rem', color: '#111827', marginBottom: 8 }}>
+            {resultado.mensagem || 'Envio concluído!'}
+          </div>
+          {resultado.total_candidatos > 0 && (
+            <div style={{ display: 'flex', gap: 24, fontFamily: 'Inter, sans-serif', fontSize: 14 }}>
+              <span style={{ color: '#16A34A', fontWeight: 700 }}>✅ {resultado.enviados} enviados</span>
+              {resultado.falhas > 0 && <span style={{ color: '#DC2626', fontWeight: 700 }}>❌ {resultado.falhas} falhas</span>}
+            </div>
+          )}
+        </div>
+      )}
+
+      {erro && (
+        <div style={{ background: '#FEE2E2', border: '1.5px solid #FECACA', borderRadius: 16, padding: '16px 20px', fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#DC2626' }}>
+          ❌ Erro: {erro}
+        </div>
+      )}
+
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+    </div>
+  )
+}
+
 // ── Seção placeholder ────────────────────────────────────────────
 function SecaoPlaceholder({ titulo, icone, desc }: { titulo: string; icone: string; desc: string }) {
   return (
@@ -1149,7 +1358,7 @@ export default function AdminDashboard() {
 
           {secao === 'anuncios' && <SecaoPlaceholder titulo="Gerenciamento de Anúncios" icone="📢" desc="Crie e gerencie anúncios patrocinados para comerciantes." />}
           {secao === 'relatorios' && <SecaoPlaceholder titulo="Relatórios & Analytics" icone="📊" desc="Visualize métricas detalhadas de uso, conversão e receita." />}
-          {secao === 'configuracoes' && <SecaoPlaceholder titulo="Configurações do Sistema" icone="⚙️" desc="Gerencie parâmetros globais, integrações e permissões." />}
+          {secao === 'configuracoes' && <SecaoConfiguracoes />}
         </main>
       </div>
 
