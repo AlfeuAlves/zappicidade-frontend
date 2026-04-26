@@ -893,32 +893,37 @@ function SecaoConfiguracoes() {
 
   const mensagemExemplo = `Olá! 👋
 
-Somos o *ZappiCidade*, o assistente digital de Barcarena pelo WhatsApp com IA.
+Somos o *ZappiCidade* — o assistente digital de Barcarena pelo WhatsApp.
 
-Boa notícia: *[Nome do Estabelecimento]* já está cadastrado e aparecendo nas buscas dos moradores! 🎉
+Antes de tudo, *experimente agora mesmo* como os moradores nos usam:
+👉 https://wa.me/559193870599?text=Oi
+
+Manda uma mensagem lá e veja como funciona! É bem simples 😊
+
+━━━━━━━━━━━━━━━━━
+🏪 *Sobre o [Nome do Estabelecimento]*
+
+Boa notícia: *[Nome do Estabelecimento]* já está cadastrado e aparece nas buscas dos moradores de Barcarena! 🎉
+
+Os moradores perguntam ao nosso assistente coisas como:
+• _"Onde tem [categoria] em Barcarena?"_
+
+E a IA indica os melhores — incluindo o seu estabelecimento! 🤖
 
 📍 Veja seu perfil:
 https://zappicidade-site.vercel.app/c/[slug]
 
 ━━━━━━━━━━━━━━━━━
-🤖 *Como funciona?*
 
-Moradores mandam mensagem pro nosso bot e perguntam:
-• _"Onde tem [categoria] em Barcarena?"_
+Quer aparecer ainda mais? Com uma conta gratuita você pode:
+✅ Editar horários de funcionamento
+✅ Adicionar foto e descrição
+✅ Receber contatos de clientes direto
 
-A IA responde na hora com os melhores — incluindo o seu! 🏪
+👉 Cadastre-se grátis:
+https://painel.zappicidadebarcarena.com.br/comerciante/login
 
-👉 Teste agora: https://wa.me/559193870599?text=Oi
-━━━━━━━━━━━━━━━━━
-
-Com uma conta gratuita:
-✅ Edite horários de funcionamento
-✅ Adicione foto e descrição
-✅ Receba mais clientes
-
-👉 Ativar conta (grátis):
-https://zappicidade-painel.vercel.app/comerciante/login
-
+Qualquer dúvida, é só responder aqui. 😊
 — Equipe ZappiCidade`
 
   const card = (valor: number | string, label: string, cor: string) => (
