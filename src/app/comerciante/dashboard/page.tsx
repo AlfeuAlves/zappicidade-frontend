@@ -818,7 +818,7 @@ function DestaqueTopForm({ isPro, onFechar }: { isPro: boolean; onFechar?: () =>
         <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#4B5563', margin: '0 0 20px', lineHeight: 1.6 }}>
           O Destaque TOP envia sua promoção diretamente no WhatsApp de quem autorizou receber.<br />Faça upgrade para PRO e comece a usar agora.
         </p>
-        <Link href="/comerciante/onboarding" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'linear-gradient(135deg, #16A34A, #15803D)', color: 'white', borderRadius: 12, padding: '12px 24px', fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 14, textDecoration: 'none', boxShadow: '0 4px 16px rgba(22,163,74,0.35)' }}>
+        <Link href="/comerciante/onboarding?plano=pro_mensal" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'linear-gradient(135deg, #16A34A, #15803D)', color: 'white', borderRadius: 12, padding: '12px 24px', fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 14, textDecoration: 'none', boxShadow: '0 4px 16px rgba(22,163,74,0.35)' }}>
           <Crown size={16} /> Assinar PRO
         </Link>
       </div>
@@ -1540,7 +1540,7 @@ function SecaoFaturamento() {
             )}
           </div>
           {!isPro && (
-            <Link href="/comerciante/onboarding" style={{ background: 'linear-gradient(135deg, #16A34A, #15803D)', color: 'white', borderRadius: 12, padding: '10px 18px', fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 13, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+            <Link href="/comerciante/onboarding?plano=pro_mensal" style={{ background: 'linear-gradient(135deg, #16A34A, #15803D)', color: 'white', borderRadius: 12, padding: '10px 18px', fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 13, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
               <Crown size={14} /> Assinar PRO
             </Link>
           )}
@@ -1599,7 +1599,7 @@ function SecaoFaturamento() {
                   Plano grátis
                 </div>
               ) : (
-                <Link href="/comerciante/onboarding" style={{ width: '100%', padding: '10px', borderRadius: 12, background: cor, color: 'white', fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 13, textAlign: 'center', textDecoration: 'none', display: 'block' }}>
+                <Link href="/comerciante/onboarding?plano=pro_mensal" style={{ width: '100%', padding: '10px', borderRadius: 12, background: cor, color: 'white', fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 13, textAlign: 'center', textDecoration: 'none', display: 'block' }}>
                   Assinar
                 </Link>
               )}

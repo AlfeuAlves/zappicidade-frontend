@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import {
   Search, MapPin, Star, CheckCircle2, ChevronRight,
@@ -803,6 +803,7 @@ function Passo4({ onAtivar, carregando }: { onAtivar: (plano: string) => void; c
 // ── Página principal ───────────────────────────────────────────
 export default function OnboardingPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [passo, setPasso] = useState(0)
   const [comercioSelecionado, setComercioSelecionado] = useState<Comercio | null>(null)
   const [vinculando, setVinculando] = useState(false)
@@ -811,9 +812,14 @@ export default function OnboardingPage() {
   useEffect(() => {
     const sessao = obterSessao()
     if (!sessao) { router.push('/comerciante/login'); return }
-    // Já tem estabelecimento vinculado — pula direto para seleção de plano
-    if (sessao.comerciante?.comercio_id) setPasso(2)
-  }, [router])
+    if (sessao.comerciante?.comercio_id) {
+      setPasso(2)
+      const plano = searchParams.get('plano')
+      if (plano && plano !== 'basico') {
+        setModalCpf({ planoId: plano })
+      }
+    }
+  }, [router, searchParams])
 
   const handleSelecionar = (c: Comercio) => { setComercioSelecionado(c); setPasso(1) }
 
