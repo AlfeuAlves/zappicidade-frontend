@@ -109,12 +109,28 @@ function StepIndicator({ passo, total }: { passo: number; total: number }) {
 }
 
 // ── Passo 1: Buscar negócio ────────────────────────────────────
-function Passo1({ onSelecionar }: { onSelecionar: (c: Comercio) => void }) {
+function Passo1({ onSelecionar, onCadastrado }: { onSelecionar: (c: Comercio) => void; onCadastrado: (comercioId: string) => void }) {
   const [busca, setBusca] = useState('')
   const [resultados, setResultados] = useState<Comercio[]>([])
   const [carregando, setCarregando] = useState(false)
   const [buscado, setBuscado] = useState(false)
   const timerRef = useRef<NodeJS.Timeout | undefined>(undefined)
+
+  // Estado do formulário de cadastro
+  const [mostraCadastro, setMostraCadastro] = useState(false)
+  const [categorias, setCategorias] = useState<Categoria[]>([])
+  const [cadNome, setCadNome] = useState('')
+  const [cadCategoria, setCadCategoria] = useState('')
+  const [cadBairro, setCadBairro] = useState('')
+  const [cadEndereco, setCadEndereco] = useState('')
+  const [cadTelefone, setCadTelefone] = useState('')
+  const [cadWhatsapp, setCadWhatsapp] = useState('')
+  const [cadSalvando, setCadSalvando] = useState(false)
+  const [cadErro, setCadErro] = useState('')
+
+  useEffect(() => {
+    api.comercios.categorias().then(setCategorias).catch(() => {})
+  }, [])
 
   useEffect(() => {
     if (busca.length < 2) { setResultados([]); setBuscado(false); return }
@@ -188,6 +204,23 @@ function Passo1({ onSelecionar }: { onSelecionar: (c: Comercio) => void }) {
         </div>
       </div>
 
+      {/* Botão flutuante cadastrar */}
+      {!mostraCadastro && (
+        <button
+          onClick={() => setMostraCadastro(true)}
+          style={{
+            position: 'fixed', bottom: 24, right: 24, zIndex: 50,
+            display: 'flex', alignItems: 'center', gap: 8,
+            background: 'white', border: '1.5px solid #16A34A', borderRadius: 999,
+            padding: '10px 18px', cursor: 'pointer',
+            boxShadow: '0 4px 16px rgba(22,163,74,0.2)',
+            color: '#16A34A', fontSize: 13, fontWeight: 700, fontFamily: 'Poppins, sans-serif',
+          }}
+        >
+          <Building2 size={15} /> Cadastrar novo
+        </button>
+      )}
+
       {/* Resultados */}
       {resultados.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -252,19 +285,92 @@ function Passo1({ onSelecionar }: { onSelecionar: (c: Comercio) => void }) {
         </div>
       )}
 
-      {buscado && resultados.length === 0 && (
-        <div style={{
-          textAlign: 'center', padding: '32px 20px',
-          background: '#F9FAFB', borderRadius: 16,
-          border: '1.5px dashed #E5E7EB',
-        }}>
+      {buscado && resultados.length === 0 && !mostraCadastro && (
+        <div style={{ textAlign: 'center', padding: '32px 20px', background: '#F9FAFB', borderRadius: 16, border: '1.5px dashed #E5E7EB' }}>
           <div style={{ fontSize: 32, marginBottom: 12 }}>🔍</div>
           <p style={{ color: '#4B5563', fontSize: 14, fontFamily: 'Inter, sans-serif' }}>
             Nenhum resultado para <strong style={{ color: '#111827' }}>"{busca}"</strong>
           </p>
           <p style={{ color: '#9CA3AF', fontSize: 13, marginTop: 8, fontFamily: 'Inter, sans-serif' }}>
-            Tente um nome mais curto ou diferente
+            Seu estabelecimento ainda não está cadastrado?
           </p>
+          <button
+            onClick={() => { setCadNome(busca); setMostraCadastro(true) }}
+            style={{ marginTop: 16, background: '#16A34A', color: 'white', border: 'none', borderRadius: 12, padding: '12px 24px', fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 14, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+            <Building2 size={16} /> Cadastrar meu estabelecimento
+          </button>
+        </div>
+      )}
+
+      {/* Formulário de cadastro */}
+      {mostraCadastro && (
+        <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 20, padding: 24, animation: 'fadeUp 0.3s ease forwards' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
+            <button onClick={() => setMostraCadastro(false)} style={{ background: '#F3F4F6', border: 'none', borderRadius: 8, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}>
+              <ArrowLeft size={15} color="#6B7280" />
+            </button>
+            <div>
+              <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 15, color: '#111827' }}>Cadastrar estabelecimento</div>
+              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#9CA3AF' }}>Preencha os dados do seu negócio</div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {[
+              { label: 'Nome do estabelecimento *', val: cadNome, set: setCadNome, ph: 'Ex: Farmácia Popular, Restaurante do João...' },
+              { label: 'Bairro', val: cadBairro, set: setCadBairro, ph: 'Ex: Centro, Murucupi...' },
+              { label: 'Endereço', val: cadEndereco, set: setCadEndereco, ph: 'Rua, número...' },
+              { label: 'Telefone', val: cadTelefone, set: setCadTelefone, ph: '(91) 99999-0000' },
+              { label: 'WhatsApp', val: cadWhatsapp, set: setCadWhatsapp, ph: '(91) 99999-0000' },
+            ].map(f => (
+              <div key={f.label}>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#374151', fontFamily: 'Poppins, sans-serif', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>{f.label}</label>
+                <input value={f.val} onChange={e => f.set(e.target.value)} placeholder={f.ph}
+                  style={{ width: '100%', padding: '11px 14px', boxSizing: 'border-box', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14, fontFamily: 'Inter, sans-serif', outline: 'none' }}
+                  onFocus={e => e.target.style.borderColor = '#16A34A'} onBlur={e => e.target.style.borderColor = '#E5E7EB'} />
+              </div>
+            ))}
+
+            <div>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#374151', fontFamily: 'Poppins, sans-serif', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 6 }}>Categoria</label>
+              <select value={cadCategoria} onChange={e => setCadCategoria(e.target.value)}
+                style={{ width: '100%', padding: '11px 14px', boxSizing: 'border-box', border: '1.5px solid #E5E7EB', borderRadius: 12, fontSize: 14, fontFamily: 'Inter, sans-serif', outline: 'none', background: 'white' }}>
+                <option value="">Selecione uma categoria</option>
+                {categorias.map(c => <option key={c.id} value={c.id}>{c.icone} {c.nome}</option>)}
+              </select>
+            </div>
+
+            {cadErro && (
+              <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 10, padding: '10px 14px', fontSize: 13, color: '#DC2626', fontFamily: 'Inter, sans-serif' }}>
+                {cadErro}
+              </div>
+            )}
+
+            <button
+              disabled={!cadNome.trim() || cadSalvando}
+              onClick={async () => {
+                setCadErro(''); setCadSalvando(true)
+                try {
+                  const res = await apiFetch<{ ok: boolean; comercio: { id: string } }>('/comerciante/perfil/criar-comercio', {
+                    method: 'POST',
+                    body: JSON.stringify({
+                      nome: cadNome.trim(),
+                      categoria_id: cadCategoria || undefined,
+                      bairro: cadBairro || undefined,
+                      endereco: cadEndereco || undefined,
+                      telefone: cadTelefone.replace(/\D/g,'') || undefined,
+                      whatsapp: cadWhatsapp.replace(/\D/g,'') || undefined,
+                    }),
+                  })
+                  onCadastrado(res.comercio.id)
+                } catch (e: any) {
+                  setCadErro(e?.message || 'Erro ao cadastrar. Tente novamente.')
+                } finally { setCadSalvando(false) }
+              }}
+              style={{ width: '100%', padding: '14px', background: cadSalvando ? '#9CA3AF' : '#16A34A', color: 'white', border: 'none', borderRadius: 14, fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 15, cursor: cadSalvando ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              {cadSalvando ? 'Cadastrando...' : <><CheckCircle2 size={16} /> Cadastrar e continuar</>}
+            </button>
+          </div>
         </div>
       )}
     </div>
@@ -704,10 +810,18 @@ export default function OnboardingPage() {
 
   useEffect(() => {
     const sessao = obterSessao()
-    if (!sessao) router.push('/comerciante/login')
+    if (!sessao) { router.push('/comerciante/login'); return }
+    // Já tem estabelecimento vinculado — pula direto para seleção de plano
+    if (sessao.comerciante?.comercio_id) setPasso(2)
   }, [router])
 
   const handleSelecionar = (c: Comercio) => { setComercioSelecionado(c); setPasso(1) }
+
+  const handleCadastrado = (comercioId: string) => {
+    const sessao = obterSessao()
+    if (sessao) salvarSessao({ ...sessao, comerciante: { ...sessao.comerciante, comercio_id: comercioId } })
+    setPasso(2)
+  }
 
   const handleVincular = async () => {
     if (!comercioSelecionado) return
@@ -810,7 +924,7 @@ export default function OnboardingPage() {
         }}>
           <StepIndicator passo={passo} total={3} />
 
-          {passo === 0 && <Passo1 onSelecionar={handleSelecionar} />}
+          {passo === 0 && <Passo1 onSelecionar={handleSelecionar} onCadastrado={handleCadastrado} />}
           {passo === 1 && comercioSelecionado && (
             <>
               {erroVinculo && (
