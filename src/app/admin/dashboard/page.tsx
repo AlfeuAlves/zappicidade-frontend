@@ -869,6 +869,8 @@ function SecaoConfiguracoes() {
   const [erro, setErro]         = useState<string | null>(null)
   const [msgPreview, setMsgPreview] = useState(false)
   const [loadingPreview, setLoadingPreview] = useState(true)
+  const [logEnviados, setLogEnviados] = useState<{ id: string; nome: string; telefone: string; enviado_em: string }[]>([])
+  const [buscaLog, setBuscaLog] = useState('')
 
   const carregarPreview = async () => {
     setLoadingPreview(true)
@@ -876,7 +878,14 @@ function SecaoConfiguracoes() {
     catch { } finally { setLoadingPreview(false) }
   }
 
-  useEffect(() => { carregarPreview() }, [])
+  const carregarLog = async () => {
+    try {
+      const r = await adminFetch<any>('/admin/prospeccao/log')
+      setLogEnviados(r.data || [])
+    } catch { }
+  }
+
+  useEffect(() => { carregarPreview(); carregarLog() }, [])
 
   const iniciarEnvio = async () => {
     if (!window.confirm(`Confirmar envio para até ${limite} estabelecimentos com intervalo de ${delayMs / 1000}s entre cada mensagem?`)) return
@@ -887,7 +896,7 @@ function SecaoConfiguracoes() {
         body: JSON.stringify({ limite, delay_ms: delayMs }),
       })
       setResultado(r)
-      carregarPreview()
+      carregarPreview(); carregarLog()
     } catch (e: any) { setErro(e.message) } finally { setEnviando(false) }
   }
 
@@ -1067,6 +1076,66 @@ Qualquer dúvida, é só responder aqui. 😊
           ❌ Erro: {erro}
         </div>
       )}
+
+      {/* Listagem de já contatados */}
+      <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 20, padding: 28 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <h3 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '1rem', color: '#111827', margin: 0 }}>
+              Estabelecimentos Contatados
+            </h3>
+            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#9CA3AF', margin: '4px 0 0' }}>
+              {logEnviados.length} mensagem{logEnviados.length !== 1 ? 's' : ''} enviada{logEnviados.length !== 1 ? 's' : ''} no total
+            </p>
+          </div>
+          <div style={{ position: 'relative' }}>
+            <Search size={14} color="#9CA3AF" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
+            <input
+              type="text" placeholder="Filtrar por nome..."
+              value={buscaLog} onChange={e => setBuscaLog(e.target.value)}
+              style={{ padding: '8px 12px 8px 30px', border: '1.5px solid #E5E7EB', borderRadius: 10, fontSize: 13, fontFamily: 'Inter, sans-serif', color: '#111827', outline: 'none', width: 200 }}
+              onFocus={e => (e.target.style.borderColor = '#16A34A')}
+              onBlur={e => (e.target.style.borderColor = '#E5E7EB')}
+            />
+          </div>
+        </div>
+
+        {logEnviados.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px 20px', color: '#9CA3AF', fontFamily: 'Inter, sans-serif', fontSize: 14 }}>
+            Nenhum estabelecimento contatado ainda.
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'Inter, sans-serif', fontSize: 13 }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid #F3F4F6' }}>
+                  <th style={{ textAlign: 'left', padding: '10px 12px', color: '#6B7280', fontWeight: 600, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.04em' }}>#</th>
+                  <th style={{ textAlign: 'left', padding: '10px 12px', color: '#6B7280', fontWeight: 600, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Estabelecimento</th>
+                  <th style={{ textAlign: 'left', padding: '10px 12px', color: '#6B7280', fontWeight: 600, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Telefone</th>
+                  <th style={{ textAlign: 'left', padding: '10px 12px', color: '#6B7280', fontWeight: 600, fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Enviado em</th>
+                </tr>
+              </thead>
+              <tbody>
+                {logEnviados
+                  .filter(e => e.nome.toLowerCase().includes(buscaLog.toLowerCase()))
+                  .map((e, i) => (
+                    <tr key={e.id} style={{ borderBottom: '1px solid #F9FAFB', transition: 'background 0.1s' }}
+                      onMouseEnter={ev => (ev.currentTarget.style.background = '#F9FAFB')}
+                      onMouseLeave={ev => (ev.currentTarget.style.background = 'transparent')}
+                    >
+                      <td style={{ padding: '11px 12px', color: '#9CA3AF', fontWeight: 500 }}>{logEnviados.length - i}</td>
+                      <td style={{ padding: '11px 12px', color: '#111827', fontWeight: 600 }}>{e.nome}</td>
+                      <td style={{ padding: '11px 12px', color: '#6B7280' }}>{e.telefone}</td>
+                      <td style={{ padding: '11px 12px', color: '#6B7280' }}>
+                        {new Date(e.enviado_em).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
