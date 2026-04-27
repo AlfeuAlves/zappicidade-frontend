@@ -800,6 +800,94 @@ function Passo4({ onAtivar, carregando }: { onAtivar: (plano: string) => void; c
   )
 }
 
+// ── Tela aguardando pagamento ──────────────────────────────────
+function TelaAguardandoPagamento({
+  urlPagamento, onVerificar, verificando, confirmado, onReabrirJanela,
+}: {
+  urlPagamento: string
+  onVerificar: () => void
+  verificando: boolean
+  confirmado: boolean
+  onReabrirJanela: () => void
+}) {
+  if (confirmado) {
+    return (
+      <div style={{ animation: 'fadeUp 0.4s ease forwards', textAlign: 'center' }}>
+        <div style={{
+          width: 72, height: 72, borderRadius: '50%',
+          background: 'linear-gradient(135deg, #16A34A, #15803D)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          margin: '0 auto 24px', boxShadow: '0 8px 24px rgba(22,163,74,0.35)', fontSize: 32,
+        }}>✅</div>
+        <h2 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.5rem', color: '#111827', marginBottom: 12 }}>
+          Pagamento confirmado!
+        </h2>
+        <p style={{ color: '#4B5563', fontSize: 14, fontFamily: 'Inter, sans-serif' }}>
+          Seu plano PRO está ativo. Redirecionando para o painel...
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ animation: 'fadeUp 0.4s ease forwards' }}>
+      <div style={{ textAlign: 'center', marginBottom: 28 }}>
+        <div style={{
+          width: 72, height: 72, borderRadius: '50%', background: '#EEF2FF',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          margin: '0 auto 20px', fontSize: 32,
+        }}>💳</div>
+        <h2 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.4rem', color: '#111827', marginBottom: 10 }}>
+          Finalize o pagamento
+        </h2>
+        <p style={{ color: '#4B5563', fontSize: 14, lineHeight: 1.7, fontFamily: 'Inter, sans-serif' }}>
+          A janela de pagamento foi aberta. Conclua o pagamento por lá e volte aqui para confirmar.
+        </p>
+      </div>
+
+      <div style={{
+        background: '#F0FDF4', border: '1.5px solid rgba(22,163,74,0.2)',
+        borderRadius: 14, padding: '14px 16px', marginBottom: 20,
+      }}>
+        <p style={{ color: '#15803D', fontSize: 13, fontFamily: 'Inter, sans-serif', margin: 0, lineHeight: 1.6 }}>
+          💡 Pague via <strong>PIX</strong>, <strong>boleto</strong> ou <strong>cartão</strong> na janela que abriu. Depois clique em <strong>Verificar pagamento</strong>.
+        </p>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <button
+          onClick={onVerificar}
+          disabled={verificando}
+          style={{
+            width: '100%', padding: '15px', borderRadius: 999, border: 'none',
+            background: verificando ? 'rgba(22,163,74,0.6)' : '#16A34A',
+            color: 'white', fontSize: 15, fontWeight: 700, fontFamily: 'Poppins, sans-serif',
+            cursor: verificando ? 'not-allowed' : 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+            boxShadow: '0 4px 20px rgba(22,163,74,0.3)',
+          }}
+        >
+          {verificando
+            ? <><div style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: 'white', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> Verificando...</>
+            : '✅ Já paguei — verificar'}
+        </button>
+
+        <button
+          onClick={onReabrirJanela}
+          style={{
+            width: '100%', padding: '13px', borderRadius: 999,
+            border: '1.5px solid #E5E7EB', background: 'white',
+            color: '#374151', fontSize: 14, fontWeight: 600, fontFamily: 'Poppins, sans-serif',
+            cursor: 'pointer',
+          }}
+        >
+          🔗 Reabrir janela de pagamento
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ── Tela de espera de aprovação ────────────────────────────────
 function TelaAguardandoAprovacao({ onVerificar, verificando }: { onVerificar: () => void; verificando: boolean }) {
   return (
@@ -849,6 +937,11 @@ export default function OnboardingPage() {
   const [vinculando, setVinculando]       = useState(false)
   const [erroVinculo, setErroVinculo]     = useState('')
   const [processandoPagamento, setProcessandoPagamento] = useState(false)
+  const [aguardandoPagamento, setAguardandoPagamento] = useState(false)
+  const [urlPagamento, setUrlPagamento]   = useState('')
+  const [verificandoPagamento, setVerificandoPagamento] = useState(false)
+  const [pagamentoConfirmado, setPagamentoConfirmado] = useState(false)
+  const [popupRef, setPopupRef]           = useState<Window | null>(null)
   const [modalCpf, setModalCpf]           = useState<{ planoId: string } | null>(null)
   const [cpf, setCpf]                     = useState('')
   const [erroCpf, setErroCpf]             = useState('')
@@ -917,6 +1010,33 @@ export default function OnboardingPage() {
       .replace(/(\d{2})(\d{1,3})/, '$1.$2')
   }
 
+  const abrirPopupPagamento = (url: string) => {
+    const w = 900, h = 680
+    const left = Math.max(0, (window.screen.width - w) / 2)
+    const top  = Math.max(0, (window.screen.height - h) / 2)
+    const popup = window.open(url, 'pagamento_zappicidade', `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`)
+    setPopupRef(popup)
+    return popup
+  }
+
+  const verificarPagamento = async () => {
+    setVerificandoPagamento(true)
+    try {
+      const r = await apiFetch<{ ativa: boolean }>('/pagamento/verificar')
+      if (r.ativa) {
+        setPagamentoConfirmado(true)
+        popupRef?.close()
+        setTimeout(() => router.push('/comerciante/dashboard?setup=1'), 2500)
+      } else {
+        alert('Pagamento ainda não confirmado. Se já pagou, aguarde alguns instantes e tente novamente.')
+      }
+    } catch (err: any) {
+      alert('Erro ao verificar: ' + err.message)
+    } finally {
+      setVerificandoPagamento(false)
+    }
+  }
+
   const iniciarCheckout = async (planoId: string, cpfValor: string) => {
     setProcessandoPagamento(true)
     setModalCpf(null)
@@ -928,7 +1048,10 @@ export default function OnboardingPage() {
       if (r.gratuito || !r.url) {
         router.push('/comerciante/dashboard?setup=1')
       } else {
-        window.location.href = r.url
+        setUrlPagamento(r.url)
+        abrirPopupPagamento(r.url)
+        setAguardandoPagamento(true)
+        setProcessandoPagamento(false)
       }
     } catch (err: any) {
       alert('Erro ao iniciar pagamento: ' + err.message)
@@ -1000,8 +1123,17 @@ export default function OnboardingPage() {
               <Passo2 comercio={comercioSelecionado} onConfirmar={handleVincular} onVoltar={() => { setComercioSelecionado(null); setPasso(0) }} carregando={vinculando} />
             </>
           )}
-          {passo === 2 && statusVerificacao === 'aprovado' && (
+          {passo === 2 && statusVerificacao === 'aprovado' && !aguardandoPagamento && (
             <Passo4 onAtivar={handleAtivar} carregando={processandoPagamento} />
+          )}
+          {passo === 2 && statusVerificacao === 'aprovado' && aguardandoPagamento && (
+            <TelaAguardandoPagamento
+              urlPagamento={urlPagamento}
+              onVerificar={verificarPagamento}
+              verificando={verificandoPagamento}
+              confirmado={pagamentoConfirmado}
+              onReabrirJanela={() => abrirPopupPagamento(urlPagamento)}
+            />
           )}
           {passo === 2 && statusVerificacao !== 'aprovado' && (
             <TelaAguardandoAprovacao onVerificar={verificarStatusAprovacao} verificando={verificandoStatus} />
