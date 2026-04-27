@@ -4,6 +4,8 @@ import Header from '@/components/Header'
 import PaginaComercio from './PaginaComercio'
 import { api } from '@/lib/api'
 
+export const dynamic = 'force-dynamic'
+
 interface Props {
   params: Promise<{ slug: string }>
 }
