@@ -169,6 +169,11 @@ export default function PaginaComercio({ comercio }: Props) {
                       🥇 Fundador ZappiCidade
                     </span>
                   )}
+                  {(comercio as any).tem_pro_ativo && !(comercio as any).tem_fundador_ativo && (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 3, background: '#EEF2FF', color: '#4338CA', borderRadius: 99, padding: '2px 8px', fontSize: 11, fontWeight: 700, border: '1px solid #C7D2FE' }}>
+                      ⭐ PRO
+                    </span>
+                  )}
                   {comercio.verificado && (
                     <span style={{ display: 'flex', alignItems: 'center', gap: 3, background: '#EFF6FF', color: '#1D4ED8', borderRadius: 99, padding: '2px 8px', fontSize: 11, fontWeight: 700 }}>
                       <BadgeCheck size={11} /> Verificado
