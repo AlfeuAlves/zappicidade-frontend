@@ -7,7 +7,7 @@ import {
   BarChart2, Tag, Bell, Settings, LogOut, Search, RefreshCw,
   Check, X, ChevronRight, ShieldCheck, MessageCircle, AlertTriangle,
   Clock, CheckCircle2, TrendingUp, Plus, Pencil, Trash2,
-  Activity, Zap, ChevronDown, MapPin, Send, Eye, EyeOff, Loader2,
+  Activity, Zap, ChevronDown, MapPin, Send, Eye, EyeOff, Loader2, Save,
 } from 'lucide-react'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
@@ -860,6 +860,110 @@ function SecaoNotificacoes({ pendentes }: { pendentes: number }) {
 }
 
 // ── Seção Configurações ──────────────────────────────────────────
+
+type RankingConfig = {
+  plano_pago: boolean
+  aberto_agora: boolean
+  proximidade_bairro: boolean
+  tem_whatsapp: boolean
+  verificado: boolean
+  avaliacoes: boolean
+}
+
+function SecaoRanking() {
+  const [cfg, setCfg] = useState<RankingConfig>({
+    plano_pago: true, aberto_agora: true, proximidade_bairro: true,
+    tem_whatsapp: true, verificado: true, avaliacoes: true,
+  })
+  const [salvando, setSalvando] = useState(false)
+  const [salvo, setSalvo]       = useState(false)
+  const [carregando, setCarregando] = useState(true)
+
+  useEffect(() => {
+    adminFetch<RankingConfig>('/admin/ranking-config')
+      .then(d => { setCfg(d); setCarregando(false) })
+      .catch(() => setCarregando(false))
+  }, [])
+
+  const salvar = async () => {
+    setSalvando(true); setSalvo(false)
+    try {
+      await adminFetch('/admin/ranking-config', { method: 'POST', body: JSON.stringify(cfg) })
+      setSalvo(true); setTimeout(() => setSalvo(false), 3000)
+    } catch { } finally { setSalvando(false) }
+  }
+
+  const toggle = (key: keyof RankingConfig) => setCfg(c => ({ ...c, [key]: !c[key] }))
+
+  const FIXOS = [
+    { pos: 1, label: '🥇 Fundador ZappiCidade', desc: 'Sempre no topo — benefício exclusivo', cor: '#92400E', bg: '#FEF3C7', border: '#FDE68A' },
+    { pos: 2, label: '⭐ PRO',                  desc: 'Assinatura ativa — sempre segundo',    cor: '#4338CA', bg: '#EEF2FF', border: '#C7D2FE' },
+  ]
+
+  const CONFIGURAVEIS: { key: keyof RankingConfig; pos: number; label: string; desc: string }[] = [
+    { key: 'plano_pago',         pos: 3, label: 'Plano pago ativo',           desc: 'Basic ou PRO com conta ativa sobem' },
+    { key: 'aberto_agora',       pos: 4, label: 'Aberto agora',               desc: 'Comércios abertos no momento sobem' },
+    { key: 'proximidade_bairro', pos: 5, label: 'Proximidade / bairro',       desc: 'Bairros próximos ao usuário têm preferência' },
+    { key: 'tem_whatsapp',       pos: 6, label: 'Tem WhatsApp',               desc: 'Estabelecimentos com contato WhatsApp sobem' },
+    { key: 'verificado',         pos: 7, label: 'Verificado',                 desc: 'Comércios verificados pelo admin sobem' },
+    { key: 'avaliacoes',         pos: 8, label: 'Nota × avaliações',          desc: 'Score = nota × log10(nº avaliações)' },
+  ]
+
+  if (carregando) return <div style={{ color: '#9CA3AF', fontSize: 13, fontFamily: 'Inter, sans-serif' }}>Carregando configuração...</div>
+
+  return (
+    <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 20, padding: 28 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h3 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '1rem', color: '#111827', margin: 0 }}>Lógica de Exibição do Bot</h3>
+          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#9CA3AF', marginTop: 4, marginBottom: 0 }}>Define a ordem de prioridade dos resultados exibidos pelo Zappi</p>
+        </div>
+        <button onClick={salvar} disabled={salvando}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, background: salvo ? '#DCFCE7' : '#16A34A', color: salvo ? '#16A34A' : 'white', border: 'none', borderRadius: 999, padding: '8px 20px', fontSize: 13, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: salvando ? 'not-allowed' : 'pointer' }}>
+          {salvando ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Save size={14} />}
+          {salvo ? 'Salvo!' : 'Salvar'}
+        </button>
+      </div>
+
+      <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {/* Itens fixos */}
+        {FIXOS.map(item => (
+          <div key={item.pos} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 12, background: item.bg, border: `1.5px solid ${item.border}` }}>
+            <div style={{ width: 26, height: 26, borderRadius: '50%', background: item.border, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <span style={{ fontSize: 11, fontWeight: 800, color: item.cor }}>{item.pos}</span>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: 'Inter, sans-serif', fontWeight: 700, fontSize: 13, color: item.cor }}>{item.label}</div>
+              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: item.cor, opacity: 0.75 }}>{item.desc}</div>
+            </div>
+            <span style={{ fontSize: 10, fontWeight: 700, fontFamily: 'Poppins, sans-serif', color: item.cor, background: 'white', padding: '2px 8px', borderRadius: 999, border: `1px solid ${item.border}` }}>FIXO</span>
+          </div>
+        ))}
+
+        {/* Separador */}
+        <div style={{ borderTop: '1.5px dashed #E5E7EB', margin: '4px 0' }} />
+
+        {/* Itens configuráveis */}
+        {CONFIGURAVEIS.map(item => (
+          <div key={item.key} onClick={() => toggle(item.key)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 12, background: cfg[item.key] ? '#F9FAFB' : 'white', border: `1.5px solid ${cfg[item.key] ? '#E5E7EB' : '#F3F4F6'}`, cursor: 'pointer', transition: 'all 0.15s' }}>
+            <div style={{ width: 26, height: 26, borderRadius: '50%', background: cfg[item.key] ? '#DCFCE7' : '#F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <span style={{ fontSize: 11, fontWeight: 800, color: cfg[item.key] ? '#16A34A' : '#9CA3AF' }}>{item.pos}</span>
+            </div>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontFamily: 'Inter, sans-serif', fontWeight: 600, fontSize: 13, color: cfg[item.key] ? '#111827' : '#9CA3AF', textDecoration: cfg[item.key] ? 'none' : 'line-through' }}>{item.label}</div>
+              <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: '#9CA3AF' }}>{item.desc}</div>
+            </div>
+            {/* Toggle */}
+            <div style={{ width: 36, height: 20, borderRadius: 999, background: cfg[item.key] ? '#16A34A' : '#D1D5DB', position: 'relative', flexShrink: 0, transition: 'background 0.2s' }}>
+              <div style={{ position: 'absolute', top: 2, left: cfg[item.key] ? 18 : 2, width: 16, height: 16, borderRadius: '50%', background: 'white', boxShadow: '0 1px 3px rgba(0,0,0,0.2)', transition: 'left 0.2s' }} />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function SecaoConfiguracoes() {
   const [preview, setPreview] = useState<{ total_com_whatsapp: number; ja_contatados: number; pendentes: number; ultimo_envio: string | null } | null>(null)
   const [limite, setLimite]   = useState(20)
@@ -945,7 +1049,10 @@ Qualquer dúvida, é só responder aqui. 😊
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
-      {/* Header */}
+      {/* Lógica de Exibição */}
+      <SecaoRanking />
+
+      {/* Header Prospecção */}
       <div>
         <h2 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.5rem', color: '#111827', marginBottom: 4 }}>Prospecção Diária</h2>
         <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#6B7280' }}>
