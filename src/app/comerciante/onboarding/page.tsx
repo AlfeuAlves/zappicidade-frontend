@@ -803,23 +803,24 @@ function Passo4({ onAtivar, carregando }: { onAtivar: (plano: string) => void; c
 // ── Página principal ───────────────────────────────────────────
 export default function OnboardingPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const [passo, setPasso] = useState(0)
+  const [passo, setPasso]                 = useState(0)
   const [comercioSelecionado, setComercioSelecionado] = useState<Comercio | null>(null)
-  const [vinculando, setVinculando] = useState(false)
-  const [erroVinculo, setErroVinculo] = useState('')
+  const [vinculando, setVinculando]       = useState(false)
+  const [erroVinculo, setErroVinculo]     = useState('')
+  const [processandoPagamento, setProcessandoPagamento] = useState(false)
+  const [modalCpf, setModalCpf]           = useState<{ planoId: string } | null>(null)
+  const [cpf, setCpf]                     = useState('')
+  const [erroCpf, setErroCpf]             = useState('')
 
   useEffect(() => {
     const sessao = obterSessao()
     if (!sessao) { router.push('/comerciante/login'); return }
     if (sessao.comerciante?.comercio_id) {
       setPasso(2)
-      const plano = searchParams.get('plano')
-      if (plano && plano !== 'basico') {
-        setModalCpf({ planoId: plano })
-      }
+      const plano = new URLSearchParams(window.location.search).get('plano')
+      if (plano && plano !== 'basico') setModalCpf({ planoId: plano })
     }
-  }, [router, searchParams])
+  }, [router])
 
   const handleSelecionar = (c: Comercio) => { setComercioSelecionado(c); setPasso(1) }
 
@@ -840,11 +841,6 @@ export default function OnboardingPage() {
     } catch (err: any) { setErroVinculo(err.message) }
     finally { setVinculando(false) }
   }
-
-  const [processandoPagamento, setProcessandoPagamento] = useState(false)
-  const [modalCpf, setModalCpf] = useState<{ planoId: string } | null>(null)
-  const [cpf, setCpf] = useState('')
-  const [erroCpf, setErroCpf] = useState('')
 
   const formatarCpfCnpj = (v: string) => {
     const n = v.replace(/\D/g, '').slice(0, 14)
