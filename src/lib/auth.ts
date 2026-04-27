@@ -7,6 +7,7 @@ export interface Comerciante {
   whatsapp: string
   comercio_id: string | null
   status: string
+  status_verificacao?: string
 }
 
 export interface AuthState {

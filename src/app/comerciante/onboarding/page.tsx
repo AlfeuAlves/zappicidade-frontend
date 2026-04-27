@@ -800,10 +800,51 @@ function Passo4({ onAtivar, carregando }: { onAtivar: (plano: string) => void; c
   )
 }
 
+// ── Tela de espera de aprovação ────────────────────────────────
+function TelaAguardandoAprovacao({ onVerificar, verificando }: { onVerificar: () => void; verificando: boolean }) {
+  return (
+    <div style={{ animation: 'fadeUp 0.4s ease forwards', textAlign: 'center' }}>
+      <div style={{
+        width: 72, height: 72, borderRadius: '50%',
+        background: '#FEF3C7', display: 'flex', alignItems: 'center',
+        justifyContent: 'center', margin: '0 auto 24px', fontSize: 32,
+      }}>⏳</div>
+      <h2 style={{
+        fontSize: '1.5rem', fontFamily: 'Poppins, sans-serif', fontWeight: 800,
+        color: '#111827', marginBottom: 12,
+      }}>
+        Aguardando aprovação
+      </h2>
+      <p style={{ color: '#4B5563', fontSize: 14, lineHeight: 1.7, fontFamily: 'Inter, sans-serif', marginBottom: 8 }}>
+        Sua solicitação foi enviada. Nossa equipe irá verificar os dados do seu estabelecimento e te avisar pelo WhatsApp assim que for aprovado.
+      </p>
+      <p style={{ color: '#6B7280', fontSize: 13, fontFamily: 'Inter, sans-serif', marginBottom: 32 }}>
+        Normalmente isso leva menos de 24 horas.
+      </p>
+      <button
+        onClick={onVerificar}
+        disabled={verificando}
+        style={{
+          width: '100%', padding: '14px', borderRadius: 999, border: '1.5px solid #16A34A',
+          background: 'white', color: '#16A34A', fontSize: 14, fontWeight: 700,
+          fontFamily: 'Poppins, sans-serif', cursor: verificando ? 'not-allowed' : 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+        }}
+      >
+        {verificando
+          ? <><div style={{ width: 14, height: 14, border: '2px solid #DCFCE7', borderTopColor: '#16A34A', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> Verificando...</>
+          : '🔄 Verificar status da aprovação'}
+      </button>
+    </div>
+  )
+}
+
 // ── Página principal ───────────────────────────────────────────
 export default function OnboardingPage() {
   const router = useRouter()
   const [passo, setPasso]                 = useState(0)
+  const [statusVerificacao, setStatusVerificacao] = useState<string>('pendente')
+  const [verificandoStatus, setVerificandoStatus] = useState(false)
   const [comercioSelecionado, setComercioSelecionado] = useState<Comercio | null>(null)
   const [vinculando, setVinculando]       = useState(false)
   const [erroVinculo, setErroVinculo]     = useState('')
@@ -816,17 +857,38 @@ export default function OnboardingPage() {
     const sessao = obterSessao()
     if (!sessao) { router.push('/comerciante/login'); return }
     if (sessao.comerciante?.comercio_id) {
+      const sv = (sessao.comerciante as any).status_verificacao || 'pendente'
+      setStatusVerificacao(sv)
       setPasso(2)
-      const plano = new URLSearchParams(window.location.search).get('plano')
-      if (plano && plano !== 'basico') setModalCpf({ planoId: plano })
+      if (sv === 'aprovado') {
+        const plano = new URLSearchParams(window.location.search).get('plano')
+        if (plano && plano !== 'basico') setModalCpf({ planoId: plano })
+      }
     }
   }, [router])
+
+  const verificarStatusAprovacao = async () => {
+    setVerificandoStatus(true)
+    try {
+      const perfil = await apiFetch<any>('/comerciante/perfil')
+      const sv = perfil.status_verificacao || 'pendente'
+      setStatusVerificacao(sv)
+      const sessao = obterSessao()
+      if (sessao) salvarSessao({ ...sessao, comerciante: { ...sessao.comerciante, status_verificacao: sv } as any })
+      if (sv === 'aprovado') {
+        const plano = new URLSearchParams(window.location.search).get('plano')
+        if (plano && plano !== 'basico') setModalCpf({ planoId: plano })
+      }
+    } catch { /* silencioso */ }
+    finally { setVerificandoStatus(false) }
+  }
 
   const handleSelecionar = (c: Comercio) => { setComercioSelecionado(c); setPasso(1) }
 
   const handleCadastrado = (comercioId: string) => {
     const sessao = obterSessao()
-    if (sessao) salvarSessao({ ...sessao, comerciante: { ...sessao.comerciante, comercio_id: comercioId } })
+    if (sessao) salvarSessao({ ...sessao, comerciante: { ...sessao.comerciante, comercio_id: comercioId } as any })
+    setStatusVerificacao('pendente')
     setPasso(2)
   }
 
@@ -836,7 +898,8 @@ export default function OnboardingPage() {
     try {
       await apiFetch('/comerciante/perfil/vincular', { method: 'POST', body: JSON.stringify({ comercio_id: comercioSelecionado.id }) })
       const sessao = obterSessao()
-      if (sessao) salvarSessao({ ...sessao, comerciante: { ...sessao.comerciante, comercio_id: comercioSelecionado.id } })
+      if (sessao) salvarSessao({ ...sessao, comerciante: { ...sessao.comerciante, comercio_id: comercioSelecionado.id } as any })
+      setStatusVerificacao('pendente')
       setPasso(2)
     } catch (err: any) { setErroVinculo(err.message) }
     finally { setVinculando(false) }
@@ -937,7 +1000,12 @@ export default function OnboardingPage() {
               <Passo2 comercio={comercioSelecionado} onConfirmar={handleVincular} onVoltar={() => { setComercioSelecionado(null); setPasso(0) }} carregando={vinculando} />
             </>
           )}
-          {passo === 2 && <Passo4 onAtivar={handleAtivar} carregando={processandoPagamento} />}
+          {passo === 2 && statusVerificacao === 'aprovado' && (
+            <Passo4 onAtivar={handleAtivar} carregando={processandoPagamento} />
+          )}
+          {passo === 2 && statusVerificacao !== 'aprovado' && (
+            <TelaAguardandoAprovacao onVerificar={verificarStatusAprovacao} verificando={verificandoStatus} />
+          )}
         </div>
 
         {/* Modal CPF */}
