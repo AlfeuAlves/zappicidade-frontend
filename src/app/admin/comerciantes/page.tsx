@@ -33,6 +33,7 @@ interface ListItem {
   status_verificacao: string
   criado_em: string
   comercios: { id: string; nome: string; slug: string } | null
+  assinaturas: { plano_slug: string; status: string }[] | null
 }
 
 function adminFetch(path: string, options?: RequestInit) {
@@ -476,6 +477,13 @@ export default function AdminComerciantesPage() {
                 <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 999, background: st.bg, color: st.cor, flexShrink: 0 }}>
                   {st.label}
                 </span>
+
+                {/* PRO badge */}
+                {c.assinaturas?.some(a => a.status === 'ativa' && a.plano_slug?.includes('pro')) && (
+                  <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 999, background: '#FEF3C7', color: '#B45309', flexShrink: 0, letterSpacing: '0.04em' }}>
+                    ⭐ PRO
+                  </span>
+                )}
 
                 {/* Ativo */}
                 <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 999, background: c.ativo ? '#F0FDF4' : '#F9FAFB', color: c.ativo ? '#16A34A' : '#9CA3AF', flexShrink: 0 }}>
