@@ -31,21 +31,20 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function Page({ params }: Props) {
   const { slug } = await params
 
-  let comercio
+  let comercio: any
   try {
     comercio = await api.comercios.detalhe(slug)
   } catch {
     notFound()
   }
 
-  const c = comercio as any
   return (
     <>
       <Header />
       <PaginaComercio
         comercio={comercio}
-        temProAtivo={!!c.tem_pro_ativo}
-        temFundadorAtivo={!!c.tem_fundador_ativo}
+        temProAtivo={!!comercio.tem_pro_ativo}
+        temFundadorAtivo={!!comercio.tem_fundador_ativo}
       />
     </>
   )
