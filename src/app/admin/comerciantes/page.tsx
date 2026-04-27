@@ -34,6 +34,7 @@ interface ListItem {
   criado_em: string
   comercios: { id: string; nome: string; slug: string } | null
   assinaturas: { plano_slug: string; status: string }[] | null
+  selos_fundador: { status: string; beneficio_fim: string | null }[] | null
 }
 
 function adminFetch(path: string, options?: RequestInit) {
@@ -478,9 +479,16 @@ export default function AdminComerciantesPage() {
                   {st.label}
                 </span>
 
+                {/* Fundador badge */}
+                {c.selos_fundador?.some(s => s.status === 'ativo' && s.beneficio_fim && new Date(s.beneficio_fim) > new Date()) && (
+                  <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 999, background: '#FEF3C7', color: '#92400E', flexShrink: 0, letterSpacing: '0.04em', border: '1px solid #FDE68A' }}>
+                    🥇 Fundador
+                  </span>
+                )}
+
                 {/* PRO badge */}
                 {c.assinaturas?.some(a => a.status === 'ativa' && a.plano_slug?.includes('pro')) && (
-                  <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 999, background: '#FEF3C7', color: '#B45309', flexShrink: 0, letterSpacing: '0.04em' }}>
+                  <span style={{ fontSize: 11, fontWeight: 800, padding: '3px 10px', borderRadius: 999, background: '#EEF2FF', color: '#4338CA', flexShrink: 0, letterSpacing: '0.04em', border: '1px solid #C7D2FE' }}>
                     ⭐ PRO
                   </span>
                 )}
