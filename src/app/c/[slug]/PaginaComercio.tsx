@@ -24,9 +24,11 @@ const DIAS_LABEL: Record<string, string> = {
 
 interface Props {
   comercio: Comercio & { promocoes: Promocao[] }
+  temProAtivo?: boolean
+  temFundadorAtivo?: boolean
 }
 
-export default function PaginaComercio({ comercio }: Props) {
+export default function PaginaComercio({ comercio, temProAtivo = false, temFundadorAtivo = false }: Props) {
   const [optinModal, setOptinModal] = useState(false)
   const [whatsapp, setWhatsapp] = useState('')
   const [nome, setNome] = useState('')
@@ -164,12 +166,12 @@ export default function PaginaComercio({ comercio }: Props) {
 
               <div style={{ flex: 1, minWidth: 0, paddingTop: 4 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
-                  {(comercio as any).tem_fundador_ativo && (
+                  {temFundadorAtivo && (
                     <span style={{ display: 'flex', alignItems: 'center', gap: 3, background: '#FEF3C7', color: '#92400E', borderRadius: 99, padding: '2px 8px', fontSize: 11, fontWeight: 700, border: '1px solid #FDE68A' }}>
                       🥇 Fundador ZappiCidade
                     </span>
                   )}
-                  {(comercio as any).tem_pro_ativo && !(comercio as any).tem_fundador_ativo && (
+                  {temProAtivo && !temFundadorAtivo && (
                     <span style={{ display: 'flex', alignItems: 'center', gap: 3, background: '#EEF2FF', color: '#4338CA', borderRadius: 99, padding: '2px 8px', fontSize: 11, fontWeight: 700, border: '1px solid #C7D2FE' }}>
                       ⭐ PRO
                     </span>
