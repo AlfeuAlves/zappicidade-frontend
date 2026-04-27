@@ -590,69 +590,205 @@ function SecaoDashboard({ stats, onNavigate }: { stats: Stats | null; onNavigate
 }
 
 // ── Seção Monetização ────────────────────────────────────────────
+interface MonetizacaoResumo {
+  mrr: number
+  total_arrecadado: number
+  assinaturas_ativas: number
+  selos_fundador_ativos: number
+  selos_fundador_pendentes: number
+  por_plano: Record<string, number>
+}
+interface Pagamento {
+  id: string; tipo: 'assinatura' | 'fundador'
+  comercio: string; comercio_slug: string
+  comerciante: string; whatsapp: string
+  plano: string; valor: number; status: string
+  data: string; fim: string | null
+}
+
+const STATUS_COR: Record<string, { bg: string; cor: string; label: string }> = {
+  ativa:     { bg: '#DCFCE7', cor: '#16A34A', label: 'Ativa' },
+  ativo:     { bg: '#DCFCE7', cor: '#16A34A', label: 'Ativo' },
+  pendente:  { bg: '#FEF3C7', cor: '#D97706', label: 'Pendente' },
+  cancelada: { bg: '#FEE2E2', cor: '#DC2626', label: 'Cancelada' },
+  cancelado: { bg: '#FEE2E2', cor: '#DC2626', label: 'Cancelado' },
+  expirado:  { bg: '#F3F4F6', cor: '#6B7280', label: 'Expirado' },
+}
+
 function SecaoMonetizacao() {
-  const planos = [
-    { nome: 'Público',  preco: 'Grátis', ativos: 1089, cor: '#6B7280', bg: '#F9FAFB' },
-    { nome: 'Basic',    preco: 'R$79/mês', ativos: 34, cor: '#3B82F6', bg: '#DBEAFE' },
-    { nome: 'Pro',      preco: 'R$179/mês', ativos: 18, cor: '#16A34A', bg: '#DCFCE7' },
-    { nome: 'Agência',  preco: 'R$490/mês', ativos: 2, cor: '#8B5CF6', bg: '#EDE9FE' },
-  ]
-  const total = 34 * 79 + 18 * 179 + 2 * 490
-  const funil = [
-    { label: 'Comércios cadastrados', valor: 1191, pct: 100, cor: '#E5E7EB' },
-    { label: 'Com conta criada', valor: 143, pct: 12, cor: '#DBEAFE' },
-    { label: 'Plano pago ativo', valor: 54, pct: 4.5, cor: '#DCFCE7' },
-    { label: 'Plano Pro ou Agência', valor: 20, pct: 1.7, cor: '#16A34A' },
-  ]
+  const [resumo, setResumo]         = useState<MonetizacaoResumo | null>(null)
+  const [pagamentos, setPagamentos] = useState<Pagamento[]>([])
+  const [total, setTotal]           = useState(0)
+  const [page, setPage]             = useState(1)
+  const [filtroStatus, setFiltroStatus] = useState('')
+  const [filtroTipo, setFiltroTipo]     = useState('')
+  const [carregando, setCarregando] = useState(true)
+
+  useEffect(() => {
+    adminFetch<MonetizacaoResumo>('/admin/monetizacao').then(setResumo).catch(() => {})
+  }, [])
+
+  useEffect(() => {
+    setCarregando(true)
+    const params = new URLSearchParams({ page: String(page), limit: '20' })
+    if (filtroStatus) params.set('status', filtroStatus)
+    if (filtroTipo)   params.set('tipo', filtroTipo)
+    adminFetch<{ data: Pagamento[]; total: number }>(`/admin/monetizacao/pagamentos?${params}`)
+      .then(r => { setPagamentos(r.data); setTotal(r.total) })
+      .catch(() => {})
+      .finally(() => setCarregando(false))
+  }, [page, filtroStatus, filtroTipo])
+
+  const totalPaginas = Math.ceil(total / 20)
+
+  const fmtValor = (v: number) => `R$ ${v.toFixed(2).replace('.', ',')}`
+  const fmtData  = (iso: string) => new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: '2-digit' })
+
   return (
     <div>
       <div style={{ marginBottom: 24 }}>
         <h2 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.5rem', color: '#111827', marginBottom: 4 }}>Monetização</h2>
-        <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#9CA3AF' }}>Visão geral de planos, receita e funil de conversão</p>
+        <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#9CA3AF' }}>Pagamentos recebidos, assinaturas ativas e selos Fundador</p>
       </div>
 
-      {/* Receita total */}
-      <div style={{ background: '#16A34A', borderRadius: 20, padding: '28px 28px', marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 8px 32px rgba(22,163,74,0.2)' }}>
-        <div>
-          <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 13, fontFamily: 'Inter, sans-serif', marginBottom: 6 }}>Receita mensal recorrente (MRR)</div>
-          <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 900, fontSize: '2.5rem', color: 'white' }}>R${total.toLocaleString('pt-BR')}</div>
-        </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 12, padding: '8px 16px', display: 'inline-block' }}>
-            <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, fontFamily: 'Inter, sans-serif' }}>Comerciantes pagantes</div>
-            <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.5rem', color: 'white' }}>54</div>
+      {/* Cards de resumo */}
+      {resumo && (
+        <>
+          {/* MRR destaque */}
+          <div style={{ background: 'linear-gradient(135deg, #16A34A, #15803D)', borderRadius: 20, padding: '28px', marginBottom: 20, display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 8px 32px rgba(22,163,74,0.25)' }}>
+            <div>
+              <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: 13, fontFamily: 'Inter, sans-serif', marginBottom: 6 }}>Receita Mensal Recorrente (MRR)</div>
+              <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 900, fontSize: '2.5rem', color: 'white' }}>{fmtValor(resumo.mrr)}</div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 14, padding: '12px 20px' }}>
+                <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: 11, fontFamily: 'Inter, sans-serif', marginBottom: 4 }}>Total arrecadado</div>
+                <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.3rem', color: 'white' }}>{fmtValor(resumo.total_arrecadado)}</div>
+              </div>
+            </div>
+          </div>
+
+          {/* 4 cards */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14, marginBottom: 28 }}>
+            {[
+              { label: 'Assinaturas ativas', valor: resumo.assinaturas_ativas, icone: '📋', cor: '#3B82F6', bg: '#DBEAFE' },
+              { label: 'Selos Fundador ativos', valor: resumo.selos_fundador_ativos, icone: '🥇', cor: '#D97706', bg: '#FEF3C7' },
+              { label: 'Fundador pendentes', valor: resumo.selos_fundador_pendentes, icone: '⏳', cor: '#8B5CF6', bg: '#EDE9FE' },
+              { label: 'Planos pagos', valor: Object.values(resumo.por_plano).reduce((a, b) => a + b, 0), icone: '💰', cor: '#16A34A', bg: '#DCFCE7' },
+            ].map(c => (
+              <div key={c.label} style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 16, padding: 20 }}>
+                <div style={{ width: 38, height: 38, borderRadius: 10, background: c.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12, fontSize: 18 }}>{c.icone}</div>
+                <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.6rem', color: c.cor }}>{c.valor}</div>
+                <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#6B7280', marginTop: 2 }}>{c.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Por plano */}
+          {Object.keys(resumo.por_plano).length > 0 && (
+            <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 16, padding: 20, marginBottom: 24 }}>
+              <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 14, color: '#111827', marginBottom: 14 }}>Distribuição por plano</div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                {Object.entries(resumo.por_plano).map(([plano, qtd]) => (
+                  <div key={plano} style={{ background: '#F0FDF4', border: '1px solid rgba(22,163,74,0.2)', borderRadius: 999, padding: '6px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 13, color: '#16A34A' }}>{qtd}</span>
+                    <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#4B5563' }}>{plano}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Tabela de pagamentos */}
+      <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 16, overflow: 'hidden' }}>
+        {/* Header + filtros */}
+        <div style={{ padding: '18px 20px', borderBottom: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+          <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 15, color: '#111827' }}>
+            Histórico de pagamentos <span style={{ color: '#9CA3AF', fontWeight: 400, fontSize: 13 }}>({total})</span>
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <select value={filtroTipo} onChange={e => { setFiltroTipo(e.target.value); setPage(1) }}
+              style={{ padding: '7px 12px', borderRadius: 10, border: '1.5px solid #E5E7EB', fontSize: 13, fontFamily: 'Inter, sans-serif', background: 'white', cursor: 'pointer' }}>
+              <option value="">Todos os tipos</option>
+              <option value="assinatura">Assinatura PRO</option>
+              <option value="fundador">Selo Fundador</option>
+            </select>
+            <select value={filtroStatus} onChange={e => { setFiltroStatus(e.target.value); setPage(1) }}
+              style={{ padding: '7px 12px', borderRadius: 10, border: '1.5px solid #E5E7EB', fontSize: 13, fontFamily: 'Inter, sans-serif', background: 'white', cursor: 'pointer' }}>
+              <option value="">Todos os status</option>
+              <option value="ativa">Ativa</option>
+              <option value="ativo">Ativo</option>
+              <option value="pendente">Pendente</option>
+              <option value="cancelada">Cancelada</option>
+              <option value="expirado">Expirado</option>
+            </select>
           </div>
         </div>
-      </div>
 
-      {/* Cards de plano */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 28 }}>
-        {planos.map(p => (
-          <div key={p.nome} style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 16, padding: 20 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 10, background: p.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 12 }}>
-              <DollarSign size={18} color={p.cor} />
-            </div>
-            <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.5rem', color: p.cor }}>{p.ativos}</div>
-            <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 14, color: '#111827' }}>{p.nome}</div>
-            <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>{p.preco}</div>
+        {carregando ? (
+          <div style={{ padding: 40, textAlign: 'center' }}>
+            <Loader2 size={28} color="#16A34A" style={{ animation: 'spin 1s linear infinite' }} />
           </div>
-        ))}
-      </div>
+        ) : pagamentos.length === 0 ? (
+          <div style={{ padding: 40, textAlign: 'center', color: '#9CA3AF', fontFamily: 'Inter, sans-serif', fontSize: 14 }}>
+            Nenhum pagamento encontrado.
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ background: '#F9FAFB' }}>
+                  {['Estabelecimento', 'Comerciante', 'Plano', 'Valor', 'Status', 'Data', 'Vencimento'].map(h => (
+                    <th key={h} style={{ padding: '10px 16px', textAlign: 'left', fontFamily: 'Poppins, sans-serif', fontSize: 11, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {pagamentos.map((p, i) => {
+                  const st = STATUS_COR[p.status] || { bg: '#F3F4F6', cor: '#6B7280', label: p.status }
+                  return (
+                    <tr key={p.id} style={{ borderTop: '1px solid #F3F4F6', background: i % 2 === 0 ? 'white' : '#FAFAFA' }}>
+                      <td style={{ padding: '12px 16px' }}>
+                        <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600, fontSize: 13, color: '#111827' }}>{p.comercio}</div>
+                        <div style={{ fontSize: 11, color: '#9CA3AF', fontFamily: 'Inter, sans-serif' }}>{p.tipo === 'fundador' ? '🥇 Fundador' : '⭐ PRO'}</div>
+                      </td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#374151' }}>{p.comerciante}</div>
+                        {p.whatsapp && <div style={{ fontSize: 11, color: '#9CA3AF', fontFamily: 'Inter, sans-serif' }}>{p.whatsapp}</div>}
+                      </td>
+                      <td style={{ padding: '12px 16px', fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#374151', whiteSpace: 'nowrap' }}>{p.plano}</td>
+                      <td style={{ padding: '12px 16px', fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 13, color: '#16A34A', whiteSpace: 'nowrap' }}>{fmtValor(p.valor)}</td>
+                      <td style={{ padding: '12px 16px' }}>
+                        <span style={{ background: st.bg, color: st.cor, borderRadius: 999, padding: '3px 10px', fontSize: 11, fontFamily: 'Poppins, sans-serif', fontWeight: 700 }}>{st.label}</span>
+                      </td>
+                      <td style={{ padding: '12px 16px', fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#6B7280', whiteSpace: 'nowrap' }}>{fmtData(p.data)}</td>
+                      <td style={{ padding: '12px 16px', fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#6B7280', whiteSpace: 'nowrap' }}>{p.fim ? fmtData(p.fim) : '—'}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-      {/* Funil */}
-      <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 16, padding: 24 }}>
-        <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 15, color: '#111827', marginBottom: 20 }}>Funil de Conversão</div>
-        {funil.map((f, i) => (
-          <div key={i} style={{ marginBottom: i < funil.length - 1 ? 16 : 0 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-              <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#4B5563' }}>{f.label}</span>
-              <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 13, color: '#111827' }}>{f.valor.toLocaleString('pt-BR')} <span style={{ color: '#9CA3AF', fontWeight: 400, fontSize: 11 }}>({f.pct}%)</span></span>
-            </div>
-            <div style={{ height: 8, background: '#F3F4F6', borderRadius: 999 }}>
-              <div style={{ height: '100%', width: `${f.pct}%`, background: f.cor === '#E5E7EB' ? '#D1D5DB' : f.cor, borderRadius: 999, transition: 'width 0.6s ease' }} />
+        {/* Paginação */}
+        {totalPaginas > 1 && (
+          <div style={{ padding: '14px 20px', borderTop: '1px solid #F3F4F6', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#6B7280' }}>Página {page} de {totalPaginas}</span>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1}
+                style={{ padding: '6px 14px', borderRadius: 8, border: '1.5px solid #E5E7EB', background: 'white', cursor: page === 1 ? 'not-allowed' : 'pointer', fontSize: 13, color: page === 1 ? '#D1D5DB' : '#374151', fontFamily: 'Inter, sans-serif' }}>
+                ← Anterior
+              </button>
+              <button onClick={() => setPage(p => Math.min(totalPaginas, p + 1))} disabled={page === totalPaginas}
+                style={{ padding: '6px 14px', borderRadius: 8, border: '1.5px solid #E5E7EB', background: 'white', cursor: page === totalPaginas ? 'not-allowed' : 'pointer', fontSize: 13, color: page === totalPaginas ? '#D1D5DB' : '#374151', fontFamily: 'Inter, sans-serif' }}>
+                Próxima →
+              </button>
             </div>
           </div>
-        ))}
+        )}
       </div>
     </div>
   )
