@@ -1386,6 +1386,132 @@ Qualquer dúvida, é só responder aqui. 😊
 }
 
 // ── Seção placeholder ────────────────────────────────────────────
+// ── SecaoRelatorios ───────────────────────────────────────────────
+function SecaoRelatorios() {
+  const [periodo, setPeriodo] = useState('30d')
+  const [dados, setDados] = useState<any>(null)
+  const [carregando, setCarregando] = useState(true)
+
+  useEffect(() => {
+    setCarregando(true)
+    adminFetch<any>(`/admin/analytics?periodo=${periodo}`)
+      .then(setDados)
+      .catch(() => {})
+      .finally(() => setCarregando(false))
+  }, [periodo])
+
+  const periodos = [{ v: '7d', l: '7 dias' }, { v: '30d', l: '30 dias' }, { v: '90d', l: '90 dias' }]
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h2 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.4rem', color: '#111827', margin: 0 }}>Relatórios de Visibilidade</h2>
+          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#6B7280', margin: '4px 0 0' }}>
+            Impressões, cliques e buscas de todos os estabelecimentos.
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {periodos.map(p => (
+            <button key={p.v} onClick={() => setPeriodo(p.v)} style={{
+              fontFamily: 'Inter, sans-serif', fontSize: 12, fontWeight: 600,
+              padding: '6px 14px', borderRadius: 99, border: '1.5px solid',
+              borderColor: periodo === p.v ? '#16A34A' : '#E5E7EB',
+              background: periodo === p.v ? '#F0FDF4' : 'white',
+              color: periodo === p.v ? '#16A34A' : '#6B7280',
+              cursor: 'pointer',
+            }}>{p.l}</button>
+          ))}
+        </div>
+      </div>
+
+      {carregando ? (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 64, color: '#9CA3AF', fontFamily: 'Inter, sans-serif', fontSize: 14 }}>
+          <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> Carregando...
+        </div>
+      ) : !dados ? (
+        <div style={{ background: 'white', border: '2px dashed #E5E7EB', borderRadius: 20, padding: 48, textAlign: 'center' }}>
+          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#9CA3AF', margin: 0 }}>Erro ao carregar dados.</p>
+        </div>
+      ) : (
+        <>
+          {/* Totais */}
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            {[
+              { label: 'Impressões totais', valor: dados.totais?.impressoes ?? 0, cor: '#6366F1', bg: '#EEF2FF', icone: '👁️' },
+              { label: 'Cliques WhatsApp', valor: dados.totais?.cliques_whatsapp ?? 0, cor: '#16A34A', bg: '#DCFCE7', icone: '💬' },
+              { label: 'Acessos ao perfil', valor: dados.totais?.cliques_perfil ?? 0, cor: '#3B82F6', bg: '#DBEAFE', icone: '🖱️' },
+            ].map(c => (
+              <div key={c.label} style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 20, padding: '20px 24px', flex: 1, minWidth: 160 }}>
+                <div style={{ fontSize: 28, marginBottom: 8 }}>{c.icone}</div>
+                <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '2rem', color: c.cor }}>{c.valor.toLocaleString('pt-BR')}</div>
+                <div style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#6B7280', marginTop: 4 }}>{c.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Top termos de busca */}
+          <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 20, padding: 24 }}>
+            <h3 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '1rem', color: '#111827', margin: '0 0 16px' }}>
+              🔍 Termos mais buscados na cidade
+            </h3>
+            {!dados.top_termos?.length ? (
+              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#9CA3AF', margin: 0 }}>Nenhum dado ainda.</p>
+            ) : (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                {dados.top_termos.map((t: any, i: number) => (
+                  <div key={i} style={{ background: '#F3F4F6', borderRadius: 99, padding: '6px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#374151', fontWeight: 500 }}>"{t.termo}"</span>
+                    <span style={{ fontFamily: 'Poppins, sans-serif', fontSize: 11, fontWeight: 700, color: '#6B7280' }}>{t.count}x</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Ranking de comércios */}
+          <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 20, padding: 24 }}>
+            <h3 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '1rem', color: '#111827', margin: '0 0 16px' }}>
+              🏆 Ranking — mais vistos
+            </h3>
+            {!dados.ranking?.length ? (
+              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#9CA3AF', margin: 0 }}>Nenhum dado ainda.</p>
+            ) : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'Inter, sans-serif', fontSize: 13 }}>
+                  <thead>
+                    <tr style={{ borderBottom: '2px solid #F3F4F6' }}>
+                      {['#', 'Estabelecimento', 'Impressões', 'WhatsApp', 'Perfil', 'Interações'].map(h => (
+                        <th key={h} style={{ textAlign: 'left', padding: '8px 12px', fontWeight: 700, color: '#6B7280', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.05em', whiteSpace: 'nowrap' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {dados.ranking.map((r: any, i: number) => (
+                      <tr key={r.comercio_id} style={{ borderBottom: '1px solid #F9FAFB' }}
+                        onMouseEnter={e => (e.currentTarget.style.background = '#F9FAFB')}
+                        onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                      >
+                        <td style={{ padding: '10px 12px', color: '#9CA3AF', fontWeight: 700 }}>{i + 1}</td>
+                        <td style={{ padding: '10px 12px', fontWeight: 600, color: '#111827' }}>{r.nome}</td>
+                        <td style={{ padding: '10px 12px', color: '#6366F1', fontWeight: 700 }}>{r.impressoes.toLocaleString('pt-BR')}</td>
+                        <td style={{ padding: '10px 12px', color: '#16A34A', fontWeight: 700 }}>{r.cliques_whatsapp}</td>
+                        <td style={{ padding: '10px 12px', color: '#3B82F6', fontWeight: 700 }}>{r.cliques_perfil}</td>
+                        <td style={{ padding: '10px 12px', color: '#374151', fontWeight: 600 }}>{r.total_interacoes}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 function SecaoPlaceholder({ titulo, icone, desc }: { titulo: string; icone: string; desc: string }) {
   return (
     <div style={{ textAlign: 'center', padding: '80px 40px', background: 'white', borderRadius: 20, border: '1.5px solid #E5E7EB' }}>
@@ -1674,7 +1800,7 @@ export default function AdminDashboard() {
           )}
 
           {secao === 'anuncios' && <SecaoPlaceholder titulo="Gerenciamento de Anúncios" icone="📢" desc="Crie e gerencie anúncios patrocinados para comerciantes." />}
-          {secao === 'relatorios' && <SecaoPlaceholder titulo="Relatórios & Analytics" icone="📊" desc="Visualize métricas detalhadas de uso, conversão e receita." />}
+          {secao === 'relatorios' && <SecaoRelatorios />}
           {secao === 'configuracoes' && <SecaoConfiguracoes />}
         </main>
       </div>

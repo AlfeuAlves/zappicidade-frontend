@@ -1802,6 +1802,128 @@ function GaleriaFotos({ isPro, comercioId }: { isPro: boolean; comercioId: strin
   )
 }
 
+// ── SecaoVisibilidade ─────────────────────────────────────────────
+function SecaoVisibilidade() {
+  const [periodo, setPeriodo] = useState('30d')
+  const [dados, setDados] = useState<any>(null)
+  const [carregando, setCarregando] = useState(true)
+
+  useEffect(() => {
+    setCarregando(true)
+    apiFetch<any>(`/comerciante/analytics?periodo=${periodo}`)
+      .then(setDados)
+      .catch(() => {})
+      .finally(() => setCarregando(false))
+  }, [periodo])
+
+  const periodos = [{ v: '7d', l: '7 dias' }, { v: '30d', l: '30 dias' }, { v: '90d', l: '90 dias' }]
+
+  const card = (icon: React.ReactNode, label: string, total: number, variacao: number | null, cor: string, bg: string) => (
+    <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 20, padding: '20px 24px', flex: 1, minWidth: 160 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+        <div style={{ width: 40, height: 40, borderRadius: 12, background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{icon}</div>
+        <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#6B7280' }}>{label}</span>
+      </div>
+      <div style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '2rem', color: '#111827', lineHeight: 1 }}>{total.toLocaleString('pt-BR')}</div>
+      {variacao !== null && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 6 }}>
+          {variacao >= 0
+            ? <TrendingUp size={13} color="#16A34A" />
+            : <TrendingDown size={13} color="#DC2626" />}
+          <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: variacao >= 0 ? '#16A34A' : '#DC2626', fontWeight: 600 }}>
+            {variacao >= 0 ? '+' : ''}{variacao}% vs período anterior
+          </span>
+        </div>
+      )}
+    </div>
+  )
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h2 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.4rem', color: '#111827', margin: 0 }}>Visibilidade do seu negócio</h2>
+          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#6B7280', margin: '4px 0 0' }}>
+            Veja quantas vezes seu estabelecimento apareceu e foi clicado no guia.
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {periodos.map(p => (
+            <button key={p.v} onClick={() => setPeriodo(p.v)} style={{
+              fontFamily: 'Inter, sans-serif', fontSize: 12, fontWeight: 600,
+              padding: '6px 14px', borderRadius: 99, border: '1.5px solid',
+              borderColor: periodo === p.v ? '#16A34A' : '#E5E7EB',
+              background: periodo === p.v ? '#F0FDF4' : 'white',
+              color: periodo === p.v ? '#16A34A' : '#6B7280',
+              cursor: 'pointer',
+            }}>{p.l}</button>
+          ))}
+        </div>
+      </div>
+
+      {carregando ? (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 48, color: '#9CA3AF', fontFamily: 'Inter, sans-serif', fontSize: 14 }}>
+          <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> Carregando dados...
+        </div>
+      ) : !dados ? (
+        <div style={{ background: 'white', border: '2px dashed #E5E7EB', borderRadius: 20, padding: 48, textAlign: 'center' }}>
+          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#9CA3AF', margin: 0 }}>Erro ao carregar dados. Tente novamente.</p>
+        </div>
+      ) : (
+        <>
+          {/* Cards de métricas */}
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+            {card(<Eye size={20} color="#6366F1" />, 'Aparições nas buscas', dados.impressoes?.total ?? 0, dados.impressoes?.variacao, '#6366F1', '#EEF2FF')}
+            {card(<MessageCircle size={20} color="#25D366" />, 'Cliques no WhatsApp', dados.whatsapp?.total ?? 0, dados.whatsapp?.variacao, '#25D366', '#DCFCE7')}
+            {card(<MousePointerClick size={20} color="#3B82F6" />, 'Acessos ao perfil', dados.perfil?.total ?? 0, dados.perfil?.variacao, '#3B82F6', '#DBEAFE')}
+          </div>
+
+          {/* Top termos */}
+          <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 20, padding: 24 }}>
+            <h3 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '1rem', color: '#111827', margin: '0 0 16px' }}>
+              🔍 Como os clientes te encontraram
+            </h3>
+            {!dados.top_termos?.length ? (
+              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#9CA3AF', margin: 0 }}>
+                Nenhuma busca registrada neste período. Assim que clientes buscarem pelo seu tipo de negócio, os termos aparecem aqui.
+              </p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {dados.top_termos.map((t: any, i: number) => {
+                  const max = dados.top_termos[0].count
+                  const pct = Math.round((t.count / max) * 100)
+                  return (
+                    <div key={i}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#374151', fontWeight: 500 }}>"{t.termo}"</span>
+                        <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#6B7280', fontWeight: 600 }}>{t.count}x</span>
+                      </div>
+                      <div style={{ height: 6, background: '#F3F4F6', borderRadius: 99, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${pct}%`, background: '#16A34A', borderRadius: 99, transition: 'width 0.4s ease' }} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* Aviso período sem dados */}
+          {dados.impressoes?.total === 0 && (
+            <div style={{ background: '#FFFBEB', border: '1.5px solid #FDE68A', borderRadius: 16, padding: '16px 20px', display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <AlertCircle size={18} color="#D97706" style={{ flexShrink: 0, marginTop: 1 }} />
+              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#92400E', margin: 0, lineHeight: 1.5 }}>
+                Nenhuma impressão registrada neste período. O tracking foi ativado recentemente — os dados começam a aparecer conforme os clientes buscam no guia.
+              </p>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
 // ── SecaoMeuNegocio ──────────────────────────────────────────────
 function SecaoMeuNegocio() {
   const [carregando, setCarregando] = useState(true)
@@ -2325,6 +2447,7 @@ export default function DashboardPage() {
 
   const navItems = [
     { id: 'dashboard',    icon: <LayoutDashboard size={18} />, label: 'Visão Geral' },
+    { id: 'visibilidade', icon: <BarChart2 size={18} />,       label: 'Visibilidade' },
     { id: 'campanhas',    icon: <Megaphone size={18} />,       label: 'Campanhas' },
     { id: 'destaque_top', icon: <Zap size={18} />,             label: 'Destaque TOP', badge: 'PRO' },
     { id: 'fundador',     icon: <Crown size={18} />,           label: 'Selo Fundador', badge: 'NOVO' },
@@ -2334,7 +2457,7 @@ export default function DashboardPage() {
   ]
 
   const titulos: Record<string, string> = {
-    dashboard: 'Visão Geral', campanhas: 'Campanhas & Anúncios',
+    dashboard: 'Visão Geral', visibilidade: 'Visibilidade', campanhas: 'Campanhas & Anúncios',
     destaque_top: 'Destaque TOP',
     fundador: 'Selo Fundador',
     perfil: 'Meu Negócio', leads: 'Clientes', faturamento: 'Faturamento',
@@ -2527,7 +2650,8 @@ export default function DashboardPage() {
           </div>
         ) : (
           <main style={{ flex: 1, padding: isMobile ? '16px 12px 90px' : '32px', overflowY: 'auto' }}>
-            {seção === 'dashboard'   && <SecaoDashboard dados={dados} comerciante={comerciante} aprovado={statusVerificacao === 'aprovado'} onCriarAnuncio={() => { if (statusVerificacao !== 'aprovado') { mostrarToast('Aguarde a aprovação da sua conta pelo administrador.', 'erro'); return } setModalAnuncio(true) }} onVenderAgora={() => { if (statusVerificacao !== 'aprovado') { mostrarToast('Aguarde a aprovação da sua conta pelo administrador.', 'erro'); return } setModalVender(true) }} />}
+            {seção === 'dashboard'    && <SecaoDashboard dados={dados} comerciante={comerciante} aprovado={statusVerificacao === 'aprovado'} onCriarAnuncio={() => { if (statusVerificacao !== 'aprovado') { mostrarToast('Aguarde a aprovação da sua conta pelo administrador.', 'erro'); return } setModalAnuncio(true) }} onVenderAgora={() => { if (statusVerificacao !== 'aprovado') { mostrarToast('Aguarde a aprovação da sua conta pelo administrador.', 'erro'); return } setModalVender(true) }} />}
+            {seção === 'visibilidade' && <SecaoVisibilidade />}
             {seção === 'campanhas'    && <SecaoCampanhas dados={dados} aprovado={statusVerificacao === 'aprovado'} onCriarAnuncio={() => { if (statusVerificacao !== 'aprovado') { mostrarToast('Aguarde a aprovação da sua conta pelo administrador.', 'erro'); return } setModalAnuncio(true) }} />}
             {seção === 'destaque_top' && <SecaoDestaqueTop />}
             {seção === 'fundador'     && <SecaoFundador />}
