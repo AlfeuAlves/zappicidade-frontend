@@ -1971,6 +1971,291 @@ function SecaoMeuNegocio() {
   )
 }
 
+// ── WIZARD DE PRIMEIRO ACESSO ────────────────────────────────────
+function PrimeiroAcessoWizard({ comercioId, onConcluir }: { comercioId: string; onConcluir: () => void }) {
+  const [passo, setPasso] = useState(0)
+  const [salvando, setSalvando] = useState(false)
+  const [erro, setErro] = useState('')
+
+  // Capa
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [capaPreview, setCapaPreview] = useState('')
+  const [capaCropB64, setCapaCropB64] = useState<string | null>(null)
+  const [cropSrc, setCropSrc] = useState<string | null>(null)
+  const [showCrop, setShowCrop] = useState(false)
+
+  // Informações
+  const [whatsapp, setWhatsapp] = useState('')
+  const [telefone, setTelefone] = useState('')
+  const [descricao, setDescricao] = useState('')
+  const [endereco, setEndereco] = useState('')
+
+  // Horários
+  const [horarios, setHorarios] = useState<Record<string, { aberto: string; fechado: string; aberto_flag: boolean }>>(
+    Object.fromEntries(DIAS.map(d => [d, { aberto: '08:00', fechado: '18:00', aberto_flag: d !== 'domingo' }]))
+  )
+
+  useEffect(() => {
+    apiFetch<any>('/comerciante/perfil').then(perfil => {
+      const c = perfil.comercio
+      if (!c) return
+      if (c.foto_capa_url) setCapaPreview(c.foto_capa_url)
+      if (c.whatsapp) setWhatsapp(c.whatsapp)
+      if (c.telefone) setTelefone(c.telefone)
+      if (c.descricao) setDescricao(c.descricao)
+      if (c.endereco) setEndereco(c.endereco)
+      const h = c.horarios || {}
+      setHorarios(Object.fromEntries(DIAS.map(d => {
+        const slot = h[d]
+        if (slot) {
+          const fmt = (v: string) => v?.length === 4 ? `${v.slice(0, 2)}:${v.slice(2)}` : v || '08:00'
+          return [d, { aberto: fmt(slot.abre), fechado: fmt(slot.fecha), aberto_flag: true }]
+        }
+        return [d, { aberto: '08:00', fechado: '18:00', aberto_flag: d !== 'domingo' }]
+      })))
+    }).catch(() => {})
+  }, [])
+
+  const handleCapa = (file: File) => { setCropSrc(URL.createObjectURL(file)); setShowCrop(true) }
+  const handleCropConfirm = (b64: string) => { setCapaCropB64(b64); setCapaPreview(b64); setShowCrop(false) }
+
+  const salvarTudo = async () => {
+    setSalvando(true); setErro('')
+    try {
+      if (capaCropB64) {
+        await apiFetch('/comerciante/upload/capa', { method: 'POST', body: JSON.stringify({ base64: capaCropB64, extensao: 'jpg' }) })
+      }
+      const horariosFinais = Object.fromEntries(
+        Object.entries(horarios).map(([dia, h]) => [dia, h.aberto_flag ? { abre: h.aberto.replace(':', ''), fecha: h.fechado.replace(':', '') } : null])
+      )
+      await apiFetch('/comerciante/perfil/comercio', {
+        method: 'PUT',
+        body: JSON.stringify({ descricao, whatsapp: whatsapp.replace(/\D/g, ''), telefone, endereco, horarios: horariosFinais })
+      })
+      localStorage.setItem(`zc_setup_done_${comercioId}`, '1')
+      onConcluir()
+    } catch (err: any) {
+      setErro(err.message || 'Erro ao salvar. Tente novamente.')
+      setSalvando(false)
+    }
+  }
+
+  const passos = [
+    { label: 'Foto de Capa', icon: '📸' },
+    { label: 'Informações', icon: '📝' },
+    { label: 'Horários', icon: '🕐' },
+  ]
+
+  const inp: React.CSSProperties = {
+    width: '100%', padding: '11px 14px', border: '1.5px solid #E5E7EB',
+    borderRadius: 12, fontSize: 14, color: '#111827', fontFamily: 'Inter, sans-serif',
+    background: 'white', outline: 'none', boxSizing: 'border-box',
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
+      zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: 20, backdropFilter: 'blur(4px)',
+    }}>
+      {showCrop && cropSrc && (
+        <ImageCropModal src={cropSrc} aspectRatio={8 / 3} outputWidth={1200}
+          onConfirm={handleCropConfirm}
+          onClose={() => { setShowCrop(false); if (fileRef.current) fileRef.current.value = '' }}
+        />
+      )}
+
+      <div style={{
+        background: 'white', borderRadius: 24, width: '100%', maxWidth: 520,
+        maxHeight: '90vh', overflowY: 'auto',
+        boxShadow: '0 24px 64px rgba(0,0,0,0.25)',
+        animation: 'fadeUp 0.3s ease forwards',
+      }}>
+        {/* Header */}
+        <div style={{ padding: '28px 28px 0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
+            <div style={{ width: 44, height: 44, borderRadius: 14, background: '#DCFCE7', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>
+              🎉
+            </div>
+            <div>
+              <h2 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: 18, color: '#111827', margin: 0 }}>
+                Bem-vindo ao ZappiCidade!
+              </h2>
+              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#6B7280', margin: 0 }}>
+                Configure seu negócio em 3 passos rápidos
+              </p>
+            </div>
+          </div>
+
+          {/* Progress steps */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginTop: 20, marginBottom: 24 }}>
+            {passos.map((p, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flex: 1 }}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: i < passo ? 14 : 13,
+                    background: i < passo ? '#16A34A' : i === passo ? '#16A34A' : '#F3F4F6',
+                    color: i <= passo ? 'white' : '#9CA3AF',
+                    fontWeight: 700, fontFamily: 'Poppins, sans-serif',
+                    transition: 'all 0.3s',
+                  }}>
+                    {i < passo ? '✓' : p.icon}
+                  </div>
+                  <span style={{ fontSize: 10, fontWeight: 600, color: i <= passo ? '#16A34A' : '#9CA3AF', fontFamily: 'Inter, sans-serif', whiteSpace: 'nowrap' }}>
+                    {p.label}
+                  </span>
+                </div>
+                {i < passos.length - 1 && (
+                  <div style={{ height: 2, flex: 1, background: i < passo ? '#16A34A' : '#E5E7EB', marginBottom: 18, transition: 'background 0.3s' }} />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Conteúdo */}
+        <div style={{ padding: '0 28px 28px' }}>
+
+          {/* PASSO 0 — Foto de capa */}
+          {passo === 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#4B5563', margin: 0, lineHeight: 1.6 }}>
+                A foto de capa é a primeira coisa que os clientes veem. Adicione uma imagem do seu estabelecimento para causar uma boa impressão.
+              </p>
+              <input ref={fileRef} type="file" accept="image/*" style={{ display: 'none' }}
+                onChange={e => { if (e.target.files?.[0]) handleCapa(e.target.files[0]) }} />
+              {capaPreview ? (
+                <div style={{ position: 'relative', width: '100%', aspectRatio: '8/3', borderRadius: 14, overflow: 'hidden' }}>
+                  <img src={capaPreview} alt="Capa" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <button onClick={() => fileRef.current?.click()}
+                    style={{ position: 'absolute', bottom: 10, right: 10, background: 'rgba(0,0,0,0.6)', color: 'white', border: 'none', borderRadius: 8, padding: '6px 12px', fontSize: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Camera size={12} /> Trocar
+                  </button>
+                </div>
+              ) : (
+                <div onClick={() => fileRef.current?.click()}
+                  style={{ width: '100%', aspectRatio: '8/3', background: '#F9FAFB', border: '2px dashed #D1D5DB', borderRadius: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', gap: 10 }}>
+                  <div style={{ width: 48, height: 48, borderRadius: 12, background: '#DCFCE7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Camera size={22} color="#16A34A" />
+                  </div>
+                  <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#9CA3AF' }}>Clique para adicionar foto de capa</span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* PASSO 1 — Informações */}
+          {passo === 1 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#4B5563', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: 'Poppins, sans-serif' }}>WhatsApp do negócio</label>
+                <input style={inp} type="tel" placeholder="(91) 99999-9999" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#4B5563', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: 'Poppins, sans-serif' }}>Telefone fixo (opcional)</label>
+                <input style={inp} type="tel" placeholder="(91) 3333-3333" value={telefone} onChange={e => setTelefone(e.target.value)} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#4B5563', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: 'Poppins, sans-serif' }}>Endereço</label>
+                <input style={inp} type="text" placeholder="Rua, número, bairro" value={endereco} onChange={e => setEndereco(e.target.value)} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#4B5563', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em', fontFamily: 'Poppins, sans-serif' }}>Descrição do negócio</label>
+                <textarea
+                  style={{ ...inp, resize: 'none', height: 80 }}
+                  placeholder="Conte um pouco sobre seu estabelecimento..."
+                  value={descricao}
+                  onChange={e => setDescricao(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* PASSO 2 — Horários */}
+          {passo === 2 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#6B7280', margin: '0 0 4px', lineHeight: 1.6 }}>
+                Defina os horários de funcionamento. Os clientes verão se está aberto ou fechado em tempo real.
+              </p>
+              {DIAS.map(dia => {
+                const h = horarios[dia] || { aberto: '08:00', fechado: '18:00', aberto_flag: true }
+                return (
+                  <div key={dia} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: h.aberto_flag ? '#F0FDF4' : '#F9FAFB', borderRadius: 10, border: `1.5px solid ${h.aberto_flag ? '#BBF7D0' : '#E5E7EB'}` }}>
+                    {/* Toggle */}
+                    <div
+                      onClick={() => setHorarios(prev => ({ ...prev, [dia]: { ...prev[dia], aberto_flag: !prev[dia]?.aberto_flag } }))}
+                      style={{ width: 36, height: 20, borderRadius: 99, background: h.aberto_flag ? '#16A34A' : '#D1D5DB', position: 'relative', cursor: 'pointer', flexShrink: 0, transition: 'background 0.2s' }}
+                    >
+                      <div style={{ width: 14, height: 14, borderRadius: '50%', background: 'white', position: 'absolute', top: 3, left: h.aberto_flag ? 19 : 3, transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
+                    </div>
+                    <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 12, color: '#111827', width: 30, flexShrink: 0 }}>
+                      {DIAS_LABEL[dia]}
+                    </span>
+                    {h.aberto_flag ? (
+                      <>
+                        <input type="time" value={h.aberto}
+                          onChange={e => setHorarios(prev => ({ ...prev, [dia]: { ...prev[dia], aberto: e.target.value } }))}
+                          style={{ flex: 1, padding: '5px 8px', border: '1.5px solid #DCFCE7', borderRadius: 8, fontSize: 13, fontFamily: 'Inter, sans-serif', outline: 'none', background: 'white', color: '#111827' }} />
+                        <span style={{ color: '#9CA3AF', fontSize: 12, flexShrink: 0 }}>até</span>
+                        <input type="time" value={h.fechado}
+                          onChange={e => setHorarios(prev => ({ ...prev, [dia]: { ...prev[dia], fechado: e.target.value } }))}
+                          style={{ flex: 1, padding: '5px 8px', border: '1.5px solid #DCFCE7', borderRadius: 8, fontSize: 13, fontFamily: 'Inter, sans-serif', outline: 'none', background: 'white', color: '#111827' }} />
+                      </>
+                    ) : (
+                      <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#9CA3AF', flex: 1 }}>Fechado</span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Erro */}
+          {erro && (
+            <div style={{ marginTop: 14, background: '#FEE2E2', border: '1.5px solid #FECACA', borderRadius: 10, padding: '10px 14px', color: '#DC2626', fontFamily: 'Inter, sans-serif', fontSize: 13 }}>
+              {erro}
+            </div>
+          )}
+
+          {/* Botões de navegação */}
+          <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
+            {passo > 0 && (
+              <button onClick={() => setPasso(p => p - 1)}
+                style={{ flex: 1, padding: '12px', borderRadius: 12, border: '1.5px solid #E5E7EB', background: 'white', color: '#374151', fontFamily: 'Poppins, sans-serif', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                ← Voltar
+              </button>
+            )}
+            {passo < 2 ? (
+              <>
+                <button onClick={() => setPasso(p => p + 1)}
+                  style={{ flex: 2, padding: '12px', borderRadius: 12, border: 'none', background: '#16A34A', color: 'white', fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 14, cursor: 'pointer', boxShadow: '0 4px 16px rgba(22,163,74,0.3)' }}>
+                  Próximo →
+                </button>
+              </>
+            ) : (
+              <button onClick={salvarTudo} disabled={salvando}
+                style={{ flex: 2, padding: '12px', borderRadius: 12, border: 'none', background: '#16A34A', color: 'white', fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 14, cursor: salvando ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: '0 4px 16px rgba(22,163,74,0.3)' }}>
+                {salvando ? <><Loader2 size={15} style={{ animation: 'spin 1s linear infinite' }} /> Salvando...</> : <><Save size={15} /> Salvar e começar!</>}
+              </button>
+            )}
+          </div>
+
+          {/* Pular */}
+          <div style={{ textAlign: 'center', marginTop: 12 }}>
+            <button
+              onClick={() => { localStorage.setItem(`zc_setup_done_${comercioId}`, '1'); onConcluir() }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#9CA3AF', textDecoration: 'underline' }}
+            >
+              Pular e configurar depois
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── PÁGINA PRINCIPAL ─────────────────────────────────────────────
 export default function DashboardPage() {
   const router = useRouter()
@@ -1984,6 +2269,7 @@ export default function DashboardPage() {
   const [isMobile, setIsMobile]             = useState(false)
   const [toast, setToast]                   = useState<{ msg: string; tipo: 'sucesso' | 'erro' } | null>(null)
   const [statusVerificacao, setStatusVerificacao] = useState<string | null>(null)
+  const [showWizard, setShowWizard] = useState(false)
 
   useEffect(() => {
     const checkMobile = () => setIsMobile(window.innerWidth < 768)
@@ -2007,6 +2293,8 @@ export default function DashboardPage() {
     if (!sessao) { router.push('/comerciante/login'); return }
     if (!sessao.comerciante.comercio_id) { router.push('/comerciante/onboarding'); return }
     setComerciante(sessao.comerciante)
+    const setupDone = localStorage.getItem(`zc_setup_done_${sessao.comerciante.comercio_id}`)
+    if (!setupDone) setShowWizard(true)
     setNomePerfil(sessao.comerciante.nome || sessao.comerciante.email?.split('@')[0] || '')
 
     Promise.all([apiFetch<DashboardData>('/comerciante/dashboard'), apiFetch<any>('/comerciante/perfil')])
@@ -2054,6 +2342,18 @@ export default function DashboardPage() {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#F8FAFC', fontFamily: 'Inter, sans-serif' }}>
+
+      {/* Wizard de primeiro acesso */}
+      {showWizard && comerciante?.comercio_id && (
+        <PrimeiroAcessoWizard
+          comercioId={comerciante.comercio_id}
+          onConcluir={() => {
+            setShowWizard(false)
+            setToast({ msg: '🎉 Perfil configurado! Seu negócio já está aparecendo para os clientes.', tipo: 'sucesso' })
+            setTimeout(() => setToast(null), 5000)
+          }}
+        />
+      )}
 
       {/* Sidebar — oculta no mobile */}
       <aside style={{ width: 248, flexShrink: 0, background: 'white', borderRight: '1.5px solid #E5E7EB', height: '100vh', position: 'sticky', top: 0, display: isMobile ? 'none' : 'flex', flexDirection: 'column', boxShadow: '2px 0 8px rgba(0,0,0,0.03)' }}>
