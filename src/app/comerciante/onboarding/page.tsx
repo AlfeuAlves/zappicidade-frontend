@@ -889,7 +889,7 @@ function TelaAguardandoPagamento({
 }
 
 // ── Tela de espera de aprovação ────────────────────────────────
-function TelaAguardandoAprovacao({ onVerificar, verificando }: { onVerificar: () => void; verificando: boolean }) {
+function TelaAguardandoAprovacao({ onVerificar, verificando, onVoltar, onFechar }: { onVerificar: () => void; verificando: boolean; onVoltar: () => void; onFechar: () => void }) {
   return (
     <div style={{ animation: 'fadeUp 0.4s ease forwards', textAlign: 'center' }}>
       <div style={{
@@ -923,6 +923,29 @@ function TelaAguardandoAprovacao({ onVerificar, verificando }: { onVerificar: ()
           ? <><div style={{ width: 14, height: 14, border: '2px solid #DCFCE7', borderTopColor: '#16A34A', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} /> Verificando...</>
           : '🔄 Verificar status da aprovação'}
       </button>
+
+      <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+        <button
+          onClick={onVoltar}
+          style={{
+            flex: 1, padding: '12px', borderRadius: 999, border: '1.5px solid #E5E7EB',
+            background: 'white', color: '#374151', fontSize: 13, fontWeight: 600,
+            fontFamily: 'Poppins, sans-serif', cursor: 'pointer',
+          }}
+        >
+          ← Voltar
+        </button>
+        <button
+          onClick={onFechar}
+          style={{
+            flex: 1, padding: '12px', borderRadius: 999, border: 'none',
+            background: '#F3F4F6', color: '#374151', fontSize: 13, fontWeight: 600,
+            fontFamily: 'Poppins, sans-serif', cursor: 'pointer',
+          }}
+        >
+          Fechar
+        </button>
+      </div>
     </div>
   )
 }
@@ -1136,7 +1159,12 @@ export default function OnboardingPage() {
             />
           )}
           {passo === 2 && statusVerificacao !== 'aprovado' && (
-            <TelaAguardandoAprovacao onVerificar={verificarStatusAprovacao} verificando={verificandoStatus} />
+            <TelaAguardandoAprovacao
+              onVerificar={verificarStatusAprovacao}
+              verificando={verificandoStatus}
+              onVoltar={() => { setComercioSelecionado(null); setPasso(0); }}
+              onFechar={() => router.push('/')}
+            />
           )}
         </div>
 
