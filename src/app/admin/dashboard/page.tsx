@@ -1722,6 +1722,14 @@ export default function AdminDashboard() {
                             {c.comercios && <span style={{ color: '#4B5563', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}><Store size={12} color="#16A34A" /> {c.comercios.nome}</span>}
                             <span style={{ color: '#9CA3AF', fontSize: 11 }}>Cadastro: {formatarData(c.criado_em)}</span>
                           </div>
+                          {!c.comercios && c.status_verificacao === 'pendente' && (
+                            <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 8, padding: '7px 12px', display: 'flex', alignItems: 'center', gap: 7, marginBottom: 8 }}>
+                              <AlertTriangle size={13} color="#DC2626" style={{ flexShrink: 0 }} />
+                              <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#991B1B', fontWeight: 600 }}>
+                                Usuário sem estabelecimento vinculado — ainda não concluiu o onboarding. Não aprovar ainda.
+                              </span>
+                            </div>
+                          )}
                           <BadgeStatus status={c.status_verificacao} />
                         </div>
                         <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>

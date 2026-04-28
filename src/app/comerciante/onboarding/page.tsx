@@ -1135,6 +1135,24 @@ export default function OnboardingPage() {
         }}>
           <StepIndicator passo={passo} total={3} />
 
+          {passo === 0 && (
+            <div style={{
+              background: '#FFFBEB', border: '1.5px solid #FDE68A', borderRadius: 14,
+              padding: '14px 18px', marginBottom: 24,
+              display: 'flex', gap: 12, alignItems: 'flex-start',
+            }}>
+              <span style={{ fontSize: 20, flexShrink: 0 }}>⚠️</span>
+              <div>
+                <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 13, color: '#92400E', margin: '0 0 4px' }}>
+                  Sua conta foi criada, mas você ainda não associou seu estabelecimento!
+                </p>
+                <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#78350F', margin: 0, lineHeight: 1.5 }}>
+                  Busque seu negócio abaixo e clique em "Este é meu negócio" para solicitar a aprovação. Sem essa etapa, nossa equipe não consegue liberar seu acesso.
+                </p>
+              </div>
+            </div>
+          )}
+
           {passo === 0 && <Passo1 onSelecionar={handleSelecionar} onCadastrado={handleCadastrado} />}
           {passo === 1 && comercioSelecionado && (
             <>
