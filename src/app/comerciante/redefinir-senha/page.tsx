@@ -1,12 +1,12 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { Loader2, Eye, EyeOff, CheckCircle2, AlertCircle, ArrowLeft } from 'lucide-react'
 import { apiFetch } from '@/lib/auth'
 
-export default function RedefinirSenhaPage() {
+function RedefinirSenhaForm() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const token = searchParams.get('token') ?? ''
@@ -203,5 +203,13 @@ export default function RedefinirSenhaPage() {
 
       <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
     </div>
+  )
+}
+
+export default function RedefinirSenhaPage() {
+  return (
+    <Suspense>
+      <RedefinirSenhaForm />
+    </Suspense>
   )
 }
