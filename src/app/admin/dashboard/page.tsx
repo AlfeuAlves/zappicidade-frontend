@@ -46,7 +46,7 @@ interface Comercio {
   destaque: boolean; bairro: string; criado_em: string
   categorias: { nome: string; icone: string } | null
 }
-type Secao = 'dashboard' | 'pendentes' | 'comerciantes' | 'comercios' | 'monetizacao' | 'ia' | 'relatorios' | 'anuncios' | 'notificacoes' | 'configuracoes' | 'usuarios'
+type Secao = 'dashboard' | 'pendentes' | 'comerciantes' | 'comercios' | 'monetizacao' | 'ia' | 'relatorios' | 'anuncios' | 'notificacoes' | 'configuracoes' | 'usuarios' | 'logs'
 
 // ── Helpers ──────────────────────────────────────────────────────
 const formatarData = (iso: string) =>
@@ -63,6 +63,7 @@ const MENU: { key: Secao; icon: React.ElementType; label: string; badge?: string
   { key: 'anuncios',       icon: Megaphone,        label: 'Anúncios' },
   { key: 'ia',             icon: Brain,            label: 'IA — RAG' },
   { key: 'relatorios',     icon: BarChart2,        label: 'Relatórios' },
+  { key: 'logs',           icon: Activity,         label: 'Logs do Sistema' },
   { key: 'notificacoes',   icon: Bell,             label: 'Notificações' },
   { key: 'configuracoes',  icon: Settings,         label: 'Configurações' },
 ]
@@ -1391,6 +1392,155 @@ Qualquer dúvida, é só responder aqui. 😊
 }
 
 // ── Seção placeholder ────────────────────────────────────────────
+// ── SecaoLogs ─────────────────────────────────────────────────────
+function SecaoLogs() {
+  const [logs, setLogs]           = useState<any[]>([])
+  const [total, setTotal]         = useState(0)
+  const [carregando, setCarregando] = useState(true)
+  const [nivel, setNivel]         = useState('')
+  const [categoria, setCategoria] = useState('')
+  const [offset, setOffset]       = useState(0)
+  const LIMITE = 50
+
+  const carregar = async (nv = nivel, cat = categoria, off = 0) => {
+    setCarregando(true)
+    try {
+      const params = new URLSearchParams({ limite: String(LIMITE), offset: String(off) })
+      if (nv) params.set('nivel', nv)
+      if (cat) params.set('categoria', cat)
+      const r = await adminFetch<any>(`/admin/logs?${params}`)
+      setLogs(r.data || [])
+      setTotal(r.total || 0)
+      setOffset(off)
+    } catch { } finally { setCarregando(false) }
+  }
+
+  useEffect(() => { carregar() }, [])
+
+  const NIVEL_COR: Record<string, { bg: string; cor: string; label: string }> = {
+    info:    { bg: '#DBEAFE', cor: '#1D4ED8', label: 'INFO' },
+    aviso:   { bg: '#FEF3C7', cor: '#B45309', label: 'AVISO' },
+    erro:    { bg: '#FEE2E2', cor: '#DC2626', label: 'ERRO' },
+    critico: { bg: '#F3E8FF', cor: '#7C3AED', label: 'CRÍTICO' },
+  }
+
+  const CATEGORIA_ICONE: Record<string, string> = {
+    auth: '🔐', aprovacao: '✅', pagamento: '💳',
+    bot: '🤖', prospeccao: '📤', sistema: '⚙️',
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* Header + Filtros */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h2 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.4rem', color: '#111827', margin: 0 }}>Logs do Sistema</h2>
+          <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#6B7280', margin: '4px 0 0' }}>
+            {total.toLocaleString('pt-BR')} registro{total !== 1 ? 's' : ''} encontrado{total !== 1 ? 's' : ''}
+          </p>
+        </div>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {/* Filtro nível */}
+          <select value={nivel} onChange={e => { setNivel(e.target.value); carregar(e.target.value, categoria) }}
+            style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, padding: '7px 12px', borderRadius: 8, border: '1.5px solid #E5E7EB', background: 'white', color: '#374151', cursor: 'pointer' }}>
+            <option value="">Todos os níveis</option>
+            <option value="info">Info</option>
+            <option value="aviso">Aviso</option>
+            <option value="erro">Erro</option>
+            <option value="critico">Crítico</option>
+          </select>
+          {/* Filtro categoria */}
+          <select value={categoria} onChange={e => { setCategoria(e.target.value); carregar(nivel, e.target.value) }}
+            style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, padding: '7px 12px', borderRadius: 8, border: '1.5px solid #E5E7EB', background: 'white', color: '#374151', cursor: 'pointer' }}>
+            <option value="">Todas as categorias</option>
+            <option value="auth">Auth</option>
+            <option value="aprovacao">Aprovação</option>
+            <option value="pagamento">Pagamento</option>
+            <option value="bot">Bot</option>
+            <option value="prospeccao">Prospecção</option>
+            <option value="sistema">Sistema</option>
+          </select>
+          <button onClick={() => carregar(nivel, categoria, 0)}
+            style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 600, padding: '7px 14px', borderRadius: 8, border: '1.5px solid #E5E7EB', background: 'white', color: '#374151', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <RefreshCw size={13} /> Atualizar
+          </button>
+        </div>
+      </div>
+
+      {/* Lista */}
+      <div style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 20, overflow: 'hidden' }}>
+        {carregando ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 48, color: '#9CA3AF', fontFamily: 'Inter, sans-serif', fontSize: 14 }}>
+            <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> Carregando...
+          </div>
+        ) : logs.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 48 }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>📋</div>
+            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#9CA3AF', margin: 0 }}>Nenhum log encontrado.</p>
+          </div>
+        ) : (
+          <div>
+            {logs.map((log, i) => {
+              const nv = NIVEL_COR[log.nivel] || NIVEL_COR.info
+              return (
+                <div key={log.id} style={{
+                  display: 'flex', alignItems: 'flex-start', gap: 14, padding: '14px 20px',
+                  borderBottom: i < logs.length - 1 ? '1px solid #F3F4F6' : 'none',
+                  background: log.nivel === 'erro' || log.nivel === 'critico' ? '#FFFBEB' : 'white',
+                }}>
+                  {/* Ícone categoria */}
+                  <div style={{ fontSize: 18, flexShrink: 0, marginTop: 1 }}>
+                    {CATEGORIA_ICONE[log.categoria] || '📌'}
+                  </div>
+                  {/* Conteúdo */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 3 }}>
+                      <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 12, background: nv.bg, color: nv.cor, borderRadius: 99, padding: '2px 8px' }}>
+                        {nv.label}
+                      </span>
+                      <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: '#9CA3AF', background: '#F3F4F6', borderRadius: 99, padding: '2px 8px' }}>
+                        {log.categoria}
+                      </span>
+                      <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 11, color: '#9CA3AF' }}>
+                        {new Date(log.criado_em).toLocaleString('pt-BR')}
+                      </span>
+                    </div>
+                    <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#111827', margin: 0, lineHeight: 1.5 }}>
+                      {log.mensagem}
+                    </p>
+                    {log.detalhe && (
+                      <pre style={{ fontFamily: 'monospace', fontSize: 11, color: '#6B7280', background: '#F9FAFB', borderRadius: 6, padding: '6px 10px', marginTop: 6, overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all' }}>
+                        {JSON.stringify(log.detalhe, null, 2)}
+                      </pre>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Paginação */}
+      {total > LIMITE && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+          <button disabled={offset === 0} onClick={() => carregar(nivel, categoria, offset - LIMITE)}
+            style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 600, padding: '8px 18px', borderRadius: 99, border: '1.5px solid #E5E7EB', background: 'white', color: offset === 0 ? '#D1D5DB' : '#374151', cursor: offset === 0 ? 'not-allowed' : 'pointer' }}>
+            ← Anterior
+          </button>
+          <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#6B7280' }}>
+            {offset + 1}–{Math.min(offset + LIMITE, total)} de {total}
+          </span>
+          <button disabled={offset + LIMITE >= total} onClick={() => carregar(nivel, categoria, offset + LIMITE)}
+            style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 600, padding: '8px 18px', borderRadius: 99, border: '1.5px solid #E5E7EB', background: 'white', color: offset + LIMITE >= total ? '#D1D5DB' : '#374151', cursor: offset + LIMITE >= total ? 'not-allowed' : 'pointer' }}>
+            Próxima →
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── SecaoRelatorios ───────────────────────────────────────────────
 function SecaoRelatorios() {
   const [periodo, setPeriodo] = useState('30d')
@@ -1599,7 +1749,7 @@ export default function AdminDashboard() {
     dashboard: 'Dashboard', pendentes: 'Aprovações Pendentes', comerciantes: 'Comerciantes',
     comercios: 'Comércios', monetizacao: 'Monetização', anuncios: 'Anúncios',
     ia: 'IA — RAG Inteligente', relatorios: 'Relatórios', notificacoes: 'Notificações',
-    configuracoes: 'Configurações', usuarios: 'Usuários do Bot',
+    configuracoes: 'Configurações', usuarios: 'Usuários do Bot', logs: 'Logs do Sistema',
   }
 
   return (
@@ -1814,6 +1964,7 @@ export default function AdminDashboard() {
 
           {secao === 'anuncios' && <SecaoPlaceholder titulo="Gerenciamento de Anúncios" icone="📢" desc="Crie e gerencie anúncios patrocinados para comerciantes." />}
           {secao === 'relatorios' && <SecaoRelatorios />}
+          {secao === 'logs' && <SecaoLogs />}
           {secao === 'configuracoes' && <SecaoConfiguracoes />}
         </main>
       </div>
