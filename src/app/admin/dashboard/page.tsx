@@ -19,6 +19,11 @@ function adminFetch<T>(path: string, options?: RequestInit): Promise<T> {
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...options?.headers },
     ...options,
   }).then(async res => {
+    if (res.status === 401) {
+      localStorage.removeItem('admin_token')
+      window.location.href = '/admin/login'
+      throw new Error('Sessão expirada')
+    }
     const data = await res.json()
     if (!res.ok) throw new Error(data.erro || 'Erro')
     return data
