@@ -1810,7 +1810,7 @@ function SecaoVisibilidade() {
 
   useEffect(() => {
     setCarregando(true)
-    apiFetch<any>(`/comerciante/analytics?periodo=${periodo}`)
+    apiFetch<any>(`/comerciante/perfil/analytics?periodo=${periodo}`)
       .then(setDados)
       .catch(() => {})
       .finally(() => setCarregando(false))
