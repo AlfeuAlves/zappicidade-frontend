@@ -62,7 +62,7 @@ function ComerciosContent() {
         setTotal(res.meta.total)
         setPaginas(res.meta.paginas)
       })
-      .catch(console.error)
+      .catch(() => {})
       .finally(() => setCarregando(false))
   }, [busca, categoria, bairro, apenasAbertos, page])
 
