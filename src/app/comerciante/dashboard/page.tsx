@@ -2078,7 +2078,7 @@ function SecaoMeuNegocio() {
                     {!h.vinte_quatro && <span style={{ color:'#9CA3AF', fontSize:13 }}>até</span>}
                     {!h.vinte_quatro && <input type="time" value={h.fechado} onChange={e=>setHorarios(p=>({...p,[dia]:{...h,fechado:e.target.value}}))} style={{ padding:'7px 10px', border:'1.5px solid #E5E7EB', borderRadius:8, fontSize:13, color:'#111827', outline:'none', fontFamily:'Inter, sans-serif' }} />}
                     {h.vinte_quatro && <span style={{ fontFamily:'Poppins, sans-serif', fontWeight:700, fontSize:13, color:'#16A34A', background:'#DCFCE7', borderRadius:8, padding:'6px 12px' }}>24 horas</span>}
-                    <button onClick={()=>setHorarios(p=>({...p,[dia]:{...h,vinte_quatro:!h.vinte_quatro}}))} style={{ marginLeft:'auto', padding:'5px 10px', border:'1.5px solid #D1D5DB', borderRadius:8, fontSize:12, fontFamily:'Inter, sans-serif', cursor:'pointer', background:h.vinte_quatro?'#16A34A':'white', color:h.vinte_quatro?'white':'#6B7280', fontWeight:600, transition:'all 0.2s' }}>
+                    <button onClick={()=>setHorarios(p=>({...p,[dia]:{...h,vinte_quatro:!h.vinte_quatro}}))} style={{ padding:'5px 10px', border:'1.5px solid #D1D5DB', borderRadius:8, fontSize:12, fontFamily:'Inter, sans-serif', cursor:'pointer', background:h.vinte_quatro?'#16A34A':'white', color:h.vinte_quatro?'white':'#6B7280', fontWeight:600, transition:'all 0.2s', flexShrink:0 }}>
                       24h
                     </button>
                   </>
