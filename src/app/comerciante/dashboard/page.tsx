@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import Image from 'next/image'
 import {
   LayoutDashboard, Store, Tag, Users, BarChart2, LogOut,
-  Eye, TrendingDown, ExternalLink, Plus, ChevronRight,
+  Eye, TrendingUp, TrendingDown, ExternalLink, Plus, ChevronRight,
   Loader2, Camera, Save, Globe, Mail, Phone, AtSign, Copy, Check,
   ChevronDown, MapPin, Clock, Zap, DollarSign, MessageCircle,
   Megaphone, Brain, CreditCard, Star, AlertCircle, ArrowRight,
