@@ -1966,9 +1966,9 @@ function SecaoMeuNegocio() {
         const slot = h[d]
         if (slot) {
           const fmt = (v: string) => v?.length===4 ? `${v.slice(0,2)}:${v.slice(2)}` : v||'08:00'
-          return [d, { aberto: fmt(slot.abre), fechado: fmt(slot.fecha), aberto_flag: true }]
+          return [d, { aberto: fmt(slot.abre), fechado: fmt(slot.fecha), aberto_flag: true, vinte_quatro: !!slot.vinte_quatro_horas }]
         }
-        return [d, { aberto: '08:00', fechado: '18:00', aberto_flag: d!=='domingo' }]
+        return [d, { aberto: '08:00', fechado: '18:00', aberto_flag: d!=='domingo', vinte_quatro: false }]
       })))
     }).catch(()=>{}).finally(()=>setCarregando(false))
   }, [])
@@ -1981,7 +1981,9 @@ function SecaoMeuNegocio() {
     setErro(''); setSucesso(false); setSalvando(true)
     try {
       if (capaCropB64) await apiFetch('/comerciante/upload/capa', { method:'POST', body: JSON.stringify({ base64: capaCropB64, extensao:'jpg' }) })
-      const horariosFinais = Object.fromEntries(Object.entries(horarios).map(([dia,h]) => [dia, h.aberto_flag ? { abre: h.aberto.replace(':',''), fecha: h.fechado.replace(':','') } : null]))
+      const horariosFinais = Object.fromEntries(Object.entries(horarios).map(([dia,h]) => [dia,
+        h.aberto_flag ? (h.vinte_quatro ? { abre: '0000', fecha: '2359', vinte_quatro_horas: true } : { abre: h.aberto.replace(':',''), fecha: h.fechado.replace(':','') }) : null
+      ]))
       await apiFetch('/comerciante/perfil/comercio', { method:'PUT', body: JSON.stringify({ descricao, whatsapp: whatsapp.replace(/\D/g,''), telefone, website, instagram, email: emailComercio, endereco, categoria_id: categoriaId||undefined, horarios: horariosFinais }) })
       setSucesso(true); setTimeout(()=>setSucesso(false), 3000)
     } catch(err:any) { setErro(err.message) } finally { setSalvando(false) }
@@ -2063,18 +2065,22 @@ function SecaoMeuNegocio() {
         <div style={{ background:'white', border:'1.5px solid #E5E7EB', borderRadius:20, padding:24 }}>
           <h3 style={{ fontFamily:'Poppins, sans-serif', fontWeight:700, fontSize:15, color:'#111827', margin:'0 0 18px', display:'flex', alignItems:'center', gap:8 }}><Clock size={16} color="#16A34A" /> Horários de Funcionamento</h3>
           {DIAS.map(dia => {
-            const h = horarios[dia] || { aberto:'08:00', fechado:'18:00', aberto_flag: dia!=='domingo' }
+            const h = horarios[dia] || { aberto:'08:00', fechado:'18:00', aberto_flag: dia!=='domingo', vinte_quatro: false }
             return (
-              <div key={dia} style={{ display:'flex', alignItems:'center', gap:14, padding:'10px 0', borderBottom:'1px solid #F3F4F6' }}>
+              <div key={dia} style={{ display:'flex', alignItems:'center', gap:14, padding:'10px 0', borderBottom:'1px solid #F3F4F6', flexWrap:'wrap' }}>
                 <div style={{ width: 60, fontFamily:'Poppins, sans-serif', fontWeight:600, fontSize:13, color:'#4B5563', flexShrink:0 }}>{DIAS_LABEL[dia]}</div>
-                <button onClick={()=>setHorarios(prev=>({ ...prev, [dia]:{ ...h, aberto_flag:!h.aberto_flag } }))} style={{ width:44, height:24, borderRadius:999, border:'none', cursor:'pointer', background:h.aberto_flag?'#16A34A':'#E5E7EB', position:'relative', transition:'background 0.2s', flexShrink:0 }}>
+                <button onClick={()=>setHorarios(prev=>({ ...prev, [dia]:{ ...h, aberto_flag:!h.aberto_flag, vinte_quatro: false } }))} style={{ width:44, height:24, borderRadius:999, border:'none', cursor:'pointer', background:h.aberto_flag?'#16A34A':'#E5E7EB', position:'relative', transition:'background 0.2s', flexShrink:0 }}>
                   <div style={{ width:18, height:18, borderRadius:'50%', background:'white', position:'absolute', top:3, left:h.aberto_flag?23:3, transition:'left 0.2s', boxShadow:'0 1px 4px rgba(0,0,0,0.15)' }} />
                 </button>
                 {h.aberto_flag ? (
                   <>
-                    <input type="time" value={h.aberto} onChange={e=>setHorarios(p=>({...p,[dia]:{...h,aberto:e.target.value}}))} style={{ padding:'7px 10px', border:'1.5px solid #E5E7EB', borderRadius:8, fontSize:13, color:'#111827', outline:'none', fontFamily:'Inter, sans-serif' }} />
-                    <span style={{ color:'#9CA3AF', fontSize:13 }}>até</span>
-                    <input type="time" value={h.fechado} onChange={e=>setHorarios(p=>({...p,[dia]:{...h,fechado:e.target.value}}))} style={{ padding:'7px 10px', border:'1.5px solid #E5E7EB', borderRadius:8, fontSize:13, color:'#111827', outline:'none', fontFamily:'Inter, sans-serif' }} />
+                    {!h.vinte_quatro && <input type="time" value={h.aberto} onChange={e=>setHorarios(p=>({...p,[dia]:{...h,aberto:e.target.value}}))} style={{ padding:'7px 10px', border:'1.5px solid #E5E7EB', borderRadius:8, fontSize:13, color:'#111827', outline:'none', fontFamily:'Inter, sans-serif' }} />}
+                    {!h.vinte_quatro && <span style={{ color:'#9CA3AF', fontSize:13 }}>até</span>}
+                    {!h.vinte_quatro && <input type="time" value={h.fechado} onChange={e=>setHorarios(p=>({...p,[dia]:{...h,fechado:e.target.value}}))} style={{ padding:'7px 10px', border:'1.5px solid #E5E7EB', borderRadius:8, fontSize:13, color:'#111827', outline:'none', fontFamily:'Inter, sans-serif' }} />}
+                    {h.vinte_quatro && <span style={{ fontFamily:'Poppins, sans-serif', fontWeight:700, fontSize:13, color:'#16A34A', background:'#DCFCE7', borderRadius:8, padding:'6px 12px' }}>24 horas</span>}
+                    <button onClick={()=>setHorarios(p=>({...p,[dia]:{...h,vinte_quatro:!h.vinte_quatro}}))} style={{ marginLeft:'auto', padding:'5px 10px', border:'1.5px solid #D1D5DB', borderRadius:8, fontSize:12, fontFamily:'Inter, sans-serif', cursor:'pointer', background:h.vinte_quatro?'#16A34A':'white', color:h.vinte_quatro?'white':'#6B7280', fontWeight:600, transition:'all 0.2s' }}>
+                      24h
+                    </button>
                   </>
                 ) : <span style={{ fontFamily:'Inter, sans-serif', fontSize:13, color:'#9CA3AF' }}>Fechado</span>}
               </div>
@@ -2131,9 +2137,9 @@ function PrimeiroAcessoWizard({ comercioId, onConcluir }: { comercioId: string; 
         const slot = h[d]
         if (slot) {
           const fmt = (v: string) => v?.length === 4 ? `${v.slice(0, 2)}:${v.slice(2)}` : v || '08:00'
-          return [d, { aberto: fmt(slot.abre), fechado: fmt(slot.fecha), aberto_flag: true }]
+          return [d, { aberto: fmt(slot.abre), fechado: fmt(slot.fecha), aberto_flag: true, vinte_quatro: !!slot.vinte_quatro_horas }]
         }
-        return [d, { aberto: '08:00', fechado: '18:00', aberto_flag: d !== 'domingo' }]
+        return [d, { aberto: '08:00', fechado: '18:00', aberto_flag: d !== 'domingo', vinte_quatro: false }]
       })))
     }).catch(() => {})
   }, [])
@@ -2148,7 +2154,9 @@ function PrimeiroAcessoWizard({ comercioId, onConcluir }: { comercioId: string; 
         await apiFetch('/comerciante/upload/capa', { method: 'POST', body: JSON.stringify({ base64: capaCropB64, extensao: 'jpg' }) })
       }
       const horariosFinais = Object.fromEntries(
-        Object.entries(horarios).map(([dia, h]) => [dia, h.aberto_flag ? { abre: h.aberto.replace(':', ''), fecha: h.fechado.replace(':', '') } : null])
+        Object.entries(horarios).map(([dia, h]) => [dia,
+          h.aberto_flag ? (h.vinte_quatro ? { abre: '0000', fecha: '2359', vinte_quatro_horas: true } : { abre: h.aberto.replace(':', ''), fecha: h.fechado.replace(':', '') }) : null
+        ])
       )
       await apiFetch('/comerciante/perfil/comercio', {
         method: 'PUT',
@@ -2301,12 +2309,11 @@ function PrimeiroAcessoWizard({ comercioId, onConcluir }: { comercioId: string; 
                 Defina os horários de funcionamento. Os clientes verão se está aberto ou fechado em tempo real.
               </p>
               {DIAS.map(dia => {
-                const h = horarios[dia] || { aberto: '08:00', fechado: '18:00', aberto_flag: true }
+                const h = horarios[dia] || { aberto: '08:00', fechado: '18:00', aberto_flag: true, vinte_quatro: false }
                 return (
                   <div key={dia} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', background: h.aberto_flag ? '#F0FDF4' : '#F9FAFB', borderRadius: 10, border: `1.5px solid ${h.aberto_flag ? '#BBF7D0' : '#E5E7EB'}` }}>
-                    {/* Toggle */}
                     <div
-                      onClick={() => setHorarios(prev => ({ ...prev, [dia]: { ...prev[dia], aberto_flag: !prev[dia]?.aberto_flag } }))}
+                      onClick={() => setHorarios(prev => ({ ...prev, [dia]: { ...prev[dia], aberto_flag: !prev[dia]?.aberto_flag, vinte_quatro: false } }))}
                       style={{ width: 36, height: 20, borderRadius: 99, background: h.aberto_flag ? '#16A34A' : '#D1D5DB', position: 'relative', cursor: 'pointer', flexShrink: 0, transition: 'background 0.2s' }}
                     >
                       <div style={{ width: 14, height: 14, borderRadius: '50%', background: 'white', position: 'absolute', top: 3, left: h.aberto_flag ? 19 : 3, transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }} />
@@ -2316,13 +2323,18 @@ function PrimeiroAcessoWizard({ comercioId, onConcluir }: { comercioId: string; 
                     </span>
                     {h.aberto_flag ? (
                       <>
-                        <input type="time" value={h.aberto}
+                        {!h.vinte_quatro && <input type="time" value={h.aberto}
                           onChange={e => setHorarios(prev => ({ ...prev, [dia]: { ...prev[dia], aberto: e.target.value } }))}
-                          style={{ flex: 1, padding: '5px 8px', border: '1.5px solid #DCFCE7', borderRadius: 8, fontSize: 13, fontFamily: 'Inter, sans-serif', outline: 'none', background: 'white', color: '#111827' }} />
-                        <span style={{ color: '#9CA3AF', fontSize: 12, flexShrink: 0 }}>até</span>
-                        <input type="time" value={h.fechado}
+                          style={{ flex: 1, padding: '5px 8px', border: '1.5px solid #DCFCE7', borderRadius: 8, fontSize: 13, fontFamily: 'Inter, sans-serif', outline: 'none', background: 'white', color: '#111827' }} />}
+                        {!h.vinte_quatro && <span style={{ color: '#9CA3AF', fontSize: 12, flexShrink: 0 }}>até</span>}
+                        {!h.vinte_quatro && <input type="time" value={h.fechado}
                           onChange={e => setHorarios(prev => ({ ...prev, [dia]: { ...prev[dia], fechado: e.target.value } }))}
-                          style={{ flex: 1, padding: '5px 8px', border: '1.5px solid #DCFCE7', borderRadius: 8, fontSize: 13, fontFamily: 'Inter, sans-serif', outline: 'none', background: 'white', color: '#111827' }} />
+                          style={{ flex: 1, padding: '5px 8px', border: '1.5px solid #DCFCE7', borderRadius: 8, fontSize: 13, fontFamily: 'Inter, sans-serif', outline: 'none', background: 'white', color: '#111827' }} />}
+                        {h.vinte_quatro && <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 12, color: '#16A34A', flex: 1 }}>24 horas</span>}
+                        <button onClick={() => setHorarios(prev => ({ ...prev, [dia]: { ...prev[dia], vinte_quatro: !prev[dia]?.vinte_quatro } }))}
+                          style={{ padding: '4px 9px', border: '1.5px solid #D1D5DB', borderRadius: 7, fontSize: 11, fontFamily: 'Inter, sans-serif', cursor: 'pointer', background: h.vinte_quatro ? '#16A34A' : 'white', color: h.vinte_quatro ? 'white' : '#6B7280', fontWeight: 700, flexShrink: 0 }}>
+                          24h
+                        </button>
                       </>
                     ) : (
                       <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 12, color: '#9CA3AF', flex: 1 }}>Fechado</span>
