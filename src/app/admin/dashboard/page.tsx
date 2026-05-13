@@ -1555,7 +1555,7 @@ function SecaoRelatorios() {
       .finally(() => setCarregando(false))
   }, [periodo])
 
-  const periodos = [{ v: '7d', l: '7 dias' }, { v: '30d', l: '30 dias' }, { v: '90d', l: '90 dias' }]
+  const periodos = [{ v: '1d', l: 'Hoje' }, { v: '7d', l: '7 dias' }, { v: '30d', l: '30 dias' }, { v: '90d', l: '90 dias' }]
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
