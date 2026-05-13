@@ -1,6 +1,8 @@
+'use client'
 import Link from 'next/link'
 import { Star, MapPin, Clock, BadgeCheck, Phone } from 'lucide-react'
 import type { Comercio } from '@/lib/api'
+import { registrarEvento } from '@/lib/api'
 import { formatarAvaliacao, linkWhatsApp } from '@/lib/utils'
 
 interface Props {
@@ -129,6 +131,7 @@ export default function CardComercio({ comercio, animDelay = 0 }: Props) {
             href={`/c/${comercio.slug}`}
             className="btn btn-outline"
             style={{ flex: 1, padding: '8px 12px', fontSize: 13, borderRadius: 8, textAlign: 'center' }}
+            onClick={() => registrarEvento(comercio.id, 'clique_perfil')}
           >
             Ver mais
           </Link>
@@ -139,6 +142,7 @@ export default function CardComercio({ comercio, animDelay = 0 }: Props) {
               rel="noopener noreferrer"
               className="btn btn-whatsapp"
               style={{ flex: 1, padding: '8px 12px', fontSize: 13, borderRadius: 8 }}
+              onClick={() => registrarEvento(comercio.id, 'clique_whatsapp')}
             >
               <Phone size={13} /> WhatsApp
             </a>

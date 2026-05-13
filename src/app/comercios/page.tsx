@@ -3,7 +3,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import Header from '@/components/Header'
 import CardComercio from '@/components/CardComercio'
-import { api, type Comercio } from '@/lib/api'
+import { api, registrarEvento, type Comercio } from '@/lib/api'
 import { SlidersHorizontal, X, Loader2 } from 'lucide-react'
 
 const CATEGORIAS = [
@@ -61,6 +61,7 @@ function ComerciosContent() {
         setComercios(res.data)
         setTotal(res.meta.total)
         setPaginas(res.meta.paginas)
+        res.data.forEach(c => registrarEvento(c.id, 'impressao', busca || undefined))
       })
       .catch(() => {})
       .finally(() => setCarregando(false))

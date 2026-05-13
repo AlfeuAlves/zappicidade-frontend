@@ -59,6 +59,18 @@ export interface PaginaComercio {
   meta: { total: number; page: number; limit: number; paginas: number }
 }
 
+export function registrarEvento(
+  comercio_id: string,
+  tipo: 'impressao' | 'clique_whatsapp' | 'clique_perfil',
+  termo_busca?: string
+) {
+  fetch(`${API_URL}/comercios/evento`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ comercio_id, tipo, termo_busca: termo_busca || undefined }),
+  }).catch(() => {})
+}
+
 export const api = {
   comercios: {
     listar: (params?: Record<string, string | number | boolean>) => {
