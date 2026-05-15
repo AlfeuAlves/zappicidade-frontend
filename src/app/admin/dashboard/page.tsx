@@ -7,7 +7,7 @@ import {
   BarChart2, Tag, Bell, Settings, LogOut, Search, RefreshCw,
   Check, X, ChevronRight, ShieldCheck, MessageCircle, AlertTriangle,
   Clock, CheckCircle2, TrendingUp, Plus, Pencil, Trash2,
-  Activity, Zap, ChevronDown, MapPin, Send, Eye, EyeOff, Loader2, Save,
+  Activity, Zap, ChevronDown, MapPin, Send, Eye, EyeOff, Loader2, Save, Info,
 } from 'lucide-react'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
@@ -46,7 +46,7 @@ interface Comercio {
   destaque: boolean; bairro: string; criado_em: string
   categorias: { nome: string; icone: string } | null
 }
-type Secao = 'dashboard' | 'pendentes' | 'comerciantes' | 'comercios' | 'monetizacao' | 'ia' | 'relatorios' | 'anuncios' | 'notificacoes' | 'configuracoes' | 'usuarios' | 'logs'
+type Secao = 'dashboard' | 'pendentes' | 'comerciantes' | 'comercios' | 'monetizacao' | 'ia' | 'relatorios' | 'anuncios' | 'notificacoes' | 'configuracoes' | 'usuarios' | 'logs' | 'informacoes'
 
 // ── Helpers ──────────────────────────────────────────────────────
 const formatarData = (iso: string) =>
@@ -63,6 +63,7 @@ const MENU: { key: Secao; icon: React.ElementType; label: string; badge?: string
   { key: 'anuncios',       icon: Megaphone,        label: 'Anúncios' },
   { key: 'ia',             icon: Brain,            label: 'IA — RAG' },
   { key: 'relatorios',     icon: BarChart2,        label: 'Relatórios' },
+  { key: 'informacoes',    icon: Info,             label: 'Informações Cidade' },
   { key: 'logs',           icon: Activity,         label: 'Logs do Sistema' },
   { key: 'notificacoes',   icon: Bell,             label: 'Notificações' },
   { key: 'configuracoes',  icon: Settings,         label: 'Configurações' },
@@ -1391,6 +1392,320 @@ Qualquer dúvida, é só responder aqui. 😊
   )
 }
 
+// ── SecaoInformacoes ─────────────────────────────────────────────
+interface InfoItem {
+  id: string
+  titulo: string
+  conteudo: string
+  categoria: string
+  icone: string | null
+  fonte: string | null
+  valido_ate: string | null
+  whatsapp_colaborador: string | null
+  status: string
+  criado_em: string
+}
+
+const CATEGORIAS_INFO: Record<string, { label: string; icone: string }> = {
+  transporte: { label: 'Transporte', icone: '🚢' },
+  saude:      { label: 'Saúde',      icone: '🏥' },
+  documentos: { label: 'Documentos', icone: '📄' },
+  eventos:    { label: 'Eventos',    icone: '🎉' },
+  servicos:   { label: 'Serviços',   icone: '🔧' },
+  outros:     { label: 'Outros',     icone: '📌' },
+}
+
+function SecaoInformacoes() {
+  const [aba, setAba]               = useState<'pendente' | 'aprovado' | 'rejeitado'>('pendente')
+  const [items, setItems]           = useState<InfoItem[]>([])
+  const [total, setTotal]           = useState(0)
+  const [page, setPage]             = useState(1)
+  const [carregando, setCarregando] = useState(true)
+  const [acaoId, setAcaoId]         = useState<string | null>(null)
+  const [editando, setEditando]     = useState<InfoItem | null>(null)
+  const [confirmarDel, setConfirmarDel] = useState<InfoItem | null>(null)
+  const LIMITE = 20
+
+  const carregar = useCallback(async (status = aba, pg = page) => {
+    setCarregando(true)
+    try {
+      const r = await adminFetch<{ data: InfoItem[]; meta: { total: number } }>(
+        `/admin/informacoes?status=${status}&page=${pg}&limit=${LIMITE}`
+      )
+      setItems(r.data)
+      setTotal(r.meta?.total ?? 0)
+    } catch { } finally { setCarregando(false) }
+  }, [aba, page])
+
+  useEffect(() => { carregar(aba, 1); setPage(1) }, [aba]) // eslint-disable-line
+
+  const mudarStatus = async (id: string, status: 'aprovado' | 'rejeitado') => {
+    setAcaoId(id)
+    try {
+      await adminFetch(`/admin/informacoes/${id}`, { method: 'PUT', body: JSON.stringify({ status }) })
+      carregar(aba, page)
+    } catch (e: any) { alert(e.message) } finally { setAcaoId(null) }
+  }
+
+  const excluir = async (id: string) => {
+    setAcaoId(id)
+    try {
+      await adminFetch(`/admin/informacoes/${id}`, { method: 'DELETE' })
+      setConfirmarDel(null)
+      carregar(aba, page)
+    } catch (e: any) { alert(e.message) } finally { setAcaoId(null) }
+  }
+
+  const salvarEdicao = async () => {
+    if (!editando) return
+    setAcaoId(editando.id)
+    try {
+      await adminFetch(`/admin/informacoes/${editando.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          titulo:    editando.titulo,
+          conteudo:  editando.conteudo,
+          categoria: editando.categoria,
+          icone:     editando.icone,
+          fonte:     editando.fonte,
+          valido_ate: editando.valido_ate,
+        }),
+      })
+      setEditando(null)
+      carregar(aba, page)
+    } catch (e: any) { alert(e.message) } finally { setAcaoId(null) }
+  }
+
+  const totalPaginas = Math.ceil(total / LIMITE)
+
+  return (
+    <div>
+      {/* Header */}
+      <div style={{ marginBottom: 24 }}>
+        <h2 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.5rem', color: '#111827', marginBottom: 4 }}>
+          Informações da Cidade
+        </h2>
+        <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 14, color: '#9CA3AF', margin: 0 }}>
+          Horários, eventos e serviços enviados pela comunidade — revise e publique.
+        </p>
+      </div>
+
+      {/* Abas */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+        {([
+          { v: 'pendente',  l: 'Pendentes',  bg: '#FEF3C7', cor: '#B45309', borda: '#FDE68A' },
+          { v: 'aprovado',  l: 'Aprovadas',  bg: '#DCFCE7', cor: '#15803D', borda: '#BBF7D0' },
+          { v: 'rejeitado', l: 'Rejeitadas', bg: '#FEE2E2', cor: '#DC2626', borda: '#FECACA' },
+        ] as const).map(a => (
+          <button key={a.v} onClick={() => setAba(a.v)} style={{
+            fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 13,
+            padding: '8px 20px', borderRadius: 999,
+            border: `1.5px solid ${aba === a.v ? a.borda : '#E5E7EB'}`,
+            background: aba === a.v ? a.bg : 'white',
+            color: aba === a.v ? a.cor : '#6B7280',
+            cursor: 'pointer', transition: 'all 0.15s',
+          }}>{a.l}</button>
+        ))}
+        <button onClick={() => carregar(aba, page)} style={{
+          marginLeft: 'auto', background: 'white', border: '1.5px solid #E5E7EB',
+          borderRadius: 999, padding: '7px 14px', fontSize: 12, cursor: 'pointer',
+          display: 'flex', alignItems: 'center', gap: 6, color: '#6B7280',
+          fontFamily: 'Inter, sans-serif',
+        }}>
+          <RefreshCw size={13} /> Atualizar
+        </button>
+      </div>
+
+      {/* Lista */}
+      {carregando ? (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: 64, color: '#9CA3AF', fontFamily: 'Inter, sans-serif', fontSize: 14 }}>
+          <Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> Carregando...
+        </div>
+      ) : items.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '60px 40px', background: 'white', borderRadius: 20, border: '1.5px solid #E5E7EB' }}>
+          <div style={{ fontSize: 48, marginBottom: 12 }}>
+            {aba === 'pendente' ? '🎉' : aba === 'aprovado' ? '📭' : '🗑️'}
+          </div>
+          <p style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 600, color: '#4B5563', margin: 0 }}>
+            {aba === 'pendente' ? 'Nenhuma informação pendente!' : aba === 'aprovado' ? 'Nenhuma informação aprovada ainda' : 'Nenhuma informação rejeitada'}
+          </p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {items.map(item => {
+            const cat = CATEGORIAS_INFO[item.categoria] || { label: item.categoria, icone: '📌' }
+            return (
+              <div key={item.id} style={{
+                background: 'white',
+                border: `1.5px solid ${item.status === 'pendente' ? '#FDE68A' : item.status === 'aprovado' ? '#BBF7D0' : '#FECACA'}`,
+                borderRadius: 16, padding: '18px 20px',
+                boxShadow: '0 2px 8px rgba(31,41,55,0.04)',
+              }}>
+                <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                  {/* Ícone categoria */}
+                  <div style={{ width: 46, height: 46, borderRadius: 12, background: '#F9FAFB', border: '1.5px solid #E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, flexShrink: 0 }}>
+                    {item.icone || cat.icone}
+                  </div>
+
+                  {/* Conteúdo */}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                      <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 14, color: '#111827' }}>{item.titulo}</span>
+                      <span style={{ background: '#F3F4F6', color: '#6B7280', fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 999, fontFamily: 'Poppins, sans-serif', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{cat.label}</span>
+                    </div>
+                    <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#4B5563', margin: '0 0 8px', lineHeight: 1.5 }}>{item.conteudo}</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 16px', fontSize: 11, color: '#9CA3AF', fontFamily: 'Inter, sans-serif' }}>
+                      {item.whatsapp_colaborador && <span>📱 {item.whatsapp_colaborador}</span>}
+                      {item.fonte && <span>🔗 {item.fonte}</span>}
+                      {item.valido_ate && <span>📅 válido até {new Date(item.valido_ate).toLocaleDateString('pt-BR')}</span>}
+                      <span>🕐 {formatarData(item.criado_em)}</span>
+                    </div>
+                  </div>
+
+                  {/* Ações */}
+                  <div style={{ display: 'flex', gap: 8, flexShrink: 0, alignItems: 'center' }}>
+                    {item.status === 'pendente' && (
+                      <>
+                        <button
+                          onClick={() => mudarStatus(item.id, 'rejeitado')}
+                          disabled={acaoId === item.id}
+                          style={{ padding: '7px 14px', borderRadius: 999, border: '1.5px solid #FECACA', background: 'white', color: '#DC2626', fontSize: 12, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <X size={13} /> Rejeitar
+                        </button>
+                        <button
+                          onClick={() => mudarStatus(item.id, 'aprovado')}
+                          disabled={acaoId === item.id}
+                          style={{ padding: '7px 14px', borderRadius: 999, border: 'none', background: '#16A34A', color: 'white', fontSize: 12, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, boxShadow: '0 3px 10px rgba(22,163,74,0.3)' }}>
+                          {acaoId === item.id ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Check size={13} />}
+                          Aprovar
+                        </button>
+                      </>
+                    )}
+                    {item.status === 'aprovado' && (
+                      <button
+                        onClick={() => setEditando({ ...item })}
+                        style={{ padding: '7px 14px', borderRadius: 999, border: '1.5px solid #E5E7EB', background: 'white', color: '#6B7280', fontSize: 12, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Pencil size={13} /> Editar
+                      </button>
+                    )}
+                    {item.status === 'rejeitado' && (
+                      <button
+                        onClick={() => mudarStatus(item.id, 'aprovado')}
+                        disabled={acaoId === item.id}
+                        style={{ padding: '7px 14px', borderRadius: 999, border: '1.5px solid #BBF7D0', background: '#F0FDF4', color: '#16A34A', fontSize: 12, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Check size={13} /> Aprovar
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setConfirmarDel(item)}
+                      style={{ width: 32, height: 32, borderRadius: 8, border: '1.5px solid #E5E7EB', background: 'white', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9CA3AF', transition: 'all 0.15s' }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = '#DC2626'; e.currentTarget.style.color = '#DC2626' }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = '#E5E7EB'; e.currentTarget.style.color = '#9CA3AF' }}>
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Paginação */}
+      {totalPaginas > 1 && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, marginTop: 20 }}>
+          <button disabled={page === 1} onClick={() => { setPage(p => p - 1); carregar(aba, page - 1) }}
+            style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 600, padding: '8px 18px', borderRadius: 99, border: '1.5px solid #E5E7EB', background: 'white', color: page === 1 ? '#D1D5DB' : '#374151', cursor: page === 1 ? 'not-allowed' : 'pointer' }}>
+            ← Anterior
+          </button>
+          <span style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#6B7280' }}>{page} / {totalPaginas}</span>
+          <button disabled={page === totalPaginas} onClick={() => { setPage(p => p + 1); carregar(aba, page + 1) }}
+            style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, fontWeight: 600, padding: '8px 18px', borderRadius: 99, border: '1.5px solid #E5E7EB', background: 'white', color: page === totalPaginas ? '#D1D5DB' : '#374151', cursor: page === totalPaginas ? 'not-allowed' : 'pointer' }}>
+            Próxima →
+          </button>
+        </div>
+      )}
+
+      {/* Modal edição */}
+      {editando && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 20 }}
+          onClick={e => { if (e.target === e.currentTarget) setEditando(null) }}>
+          <div style={{ background: 'white', borderRadius: 20, padding: 28, maxWidth: 520, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)', maxHeight: '90vh', overflowY: 'auto' }}>
+            <h3 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: '1.1rem', color: '#111827', marginBottom: 20, marginTop: 0 }}>Editar Informação</h3>
+
+            {[
+              { label: 'Título', key: 'titulo' as const, type: 'text' },
+              { label: 'Ícone (emoji)', key: 'icone' as const, type: 'text' },
+              { label: 'Fonte', key: 'fonte' as const, type: 'text' },
+              { label: 'Válido até', key: 'valido_ate' as const, type: 'date' },
+            ].map(({ label, key, type }) => (
+              <div key={key} style={{ marginBottom: 14 }}>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, fontFamily: 'Poppins, sans-serif', color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>{label}</label>
+                <input
+                  type={type}
+                  value={(editando[key] as string) || ''}
+                  onChange={e => setEditando(ed => ed ? { ...ed, [key]: e.target.value } : ed)}
+                  style={{ width: '100%', padding: '9px 12px', boxSizing: 'border-box', border: '1.5px solid #E5E7EB', borderRadius: 10, fontSize: 13, fontFamily: 'Inter, sans-serif', outline: 'none' }}
+                  onFocus={e => (e.target.style.borderColor = '#16A34A')}
+                  onBlur={e => (e.target.style.borderColor = '#E5E7EB')}
+                />
+              </div>
+            ))}
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, fontFamily: 'Poppins, sans-serif', color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Categoria</label>
+              <select value={editando.categoria} onChange={e => setEditando(ed => ed ? { ...ed, categoria: e.target.value } : ed)}
+                style={{ width: '100%', padding: '9px 12px', border: '1.5px solid #E5E7EB', borderRadius: 10, fontSize: 13, fontFamily: 'Inter, sans-serif', background: 'white', outline: 'none' }}>
+                {Object.entries(CATEGORIAS_INFO).map(([v, { label, icone }]) => (
+                  <option key={v} value={v}>{icone} {label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, fontFamily: 'Poppins, sans-serif', color: '#374151', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Conteúdo</label>
+              <textarea
+                rows={4}
+                value={editando.conteudo}
+                onChange={e => setEditando(ed => ed ? { ...ed, conteudo: e.target.value } : ed)}
+                style={{ width: '100%', padding: '9px 12px', boxSizing: 'border-box', border: '1.5px solid #E5E7EB', borderRadius: 10, fontSize: 13, fontFamily: 'Inter, sans-serif', resize: 'vertical', outline: 'none' }}
+                onFocus={e => (e.target.style.borderColor = '#16A34A')}
+                onBlur={e => (e.target.style.borderColor = '#E5E7EB')}
+              />
+            </div>
+
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setEditando(null)} style={{ flex: 1, padding: '11px', borderRadius: 999, border: '1.5px solid #E5E7EB', background: 'white', color: '#4B5563', fontSize: 13, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={salvarEdicao} disabled={!!acaoId} style={{ flex: 1, padding: '11px', borderRadius: 999, border: 'none', background: '#16A34A', color: 'white', fontSize: 13, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                {acaoId ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Save size={14} />}
+                Salvar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal confirmar exclusão */}
+      {confirmarDel && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 20 }}
+          onClick={e => { if (e.target === e.currentTarget) setConfirmarDel(null) }}>
+          <div style={{ background: 'white', borderRadius: 20, padding: 28, maxWidth: 380, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)', textAlign: 'center' }}>
+            <div style={{ fontSize: 44, marginBottom: 10 }}>🗑️</div>
+            <h3 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.1rem', color: '#111827', marginBottom: 8 }}>Excluir informação?</h3>
+            <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#4B5563', marginBottom: 20 }}><strong>{confirmarDel.titulo}</strong> será removida permanentemente.</p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setConfirmarDel(null)} style={{ flex: 1, padding: '11px', borderRadius: 999, border: '1.5px solid #E5E7EB', background: 'white', color: '#4B5563', fontSize: 13, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={() => excluir(confirmarDel.id)} disabled={!!acaoId} style={{ flex: 1, padding: '11px', borderRadius: 999, border: 'none', background: '#DC2626', color: 'white', fontSize: 13, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: 'pointer', boxShadow: '0 4px 14px rgba(220,38,38,0.3)' }}>
+                {acaoId ? '...' : 'Excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Seção placeholder ────────────────────────────────────────────
 // ── SecaoLogs ─────────────────────────────────────────────────────
 function SecaoLogs() {
@@ -1750,6 +2065,7 @@ export default function AdminDashboard() {
     comercios: 'Comércios', monetizacao: 'Monetização', anuncios: 'Anúncios',
     ia: 'IA — RAG Inteligente', relatorios: 'Relatórios', notificacoes: 'Notificações',
     configuracoes: 'Configurações', usuarios: 'Usuários do Bot', logs: 'Logs do Sistema',
+    informacoes: 'Informações da Cidade',
   }
 
   return (
@@ -1966,6 +2282,7 @@ export default function AdminDashboard() {
           {secao === 'relatorios' && <SecaoRelatorios />}
           {secao === 'logs' && <SecaoLogs />}
           {secao === 'configuracoes' && <SecaoConfiguracoes />}
+          {secao === 'informacoes' && <SecaoInformacoes />}
         </main>
       </div>
 
