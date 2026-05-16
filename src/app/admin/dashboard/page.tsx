@@ -7,7 +7,7 @@ import {
   BarChart2, Tag, Bell, Settings, LogOut, Search, RefreshCw,
   Check, X, ChevronRight, ShieldCheck, MessageCircle, AlertTriangle,
   Clock, CheckCircle2, TrendingUp, Plus, Pencil, Trash2,
-  Activity, Zap, ChevronDown, MapPin, Send, Eye, EyeOff, Loader2, Save,
+  Activity, Zap, ChevronDown, MapPin, Send, Eye, EyeOff, Loader2, Save, Info,
 } from 'lucide-react'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
@@ -46,7 +46,7 @@ interface Comercio {
   destaque: boolean; bairro: string; criado_em: string
   categorias: { nome: string; icone: string } | null
 }
-type Secao = 'dashboard' | 'pendentes' | 'comerciantes' | 'comercios' | 'monetizacao' | 'ia' | 'relatorios' | 'anuncios' | 'notificacoes' | 'configuracoes' | 'usuarios' | 'logs'
+type Secao = 'dashboard' | 'pendentes' | 'comerciantes' | 'comercios' | 'monetizacao' | 'ia' | 'relatorios' | 'anuncios' | 'notificacoes' | 'configuracoes' | 'usuarios' | 'logs' | 'informacoes'
 
 // ── Helpers ──────────────────────────────────────────────────────
 const formatarData = (iso: string) =>
@@ -63,6 +63,7 @@ const MENU: { key: Secao; icon: React.ElementType; label: string; badge?: string
   { key: 'anuncios',       icon: Megaphone,        label: 'Anúncios' },
   { key: 'ia',             icon: Brain,            label: 'IA — RAG' },
   { key: 'relatorios',     icon: BarChart2,        label: 'Relatórios' },
+  { key: 'informacoes',    icon: Info,             label: 'Informações Cidade' },
   { key: 'logs',           icon: Activity,         label: 'Logs do Sistema' },
   { key: 'notificacoes',   icon: Bell,             label: 'Notificações' },
   { key: 'configuracoes',  icon: Settings,         label: 'Configurações' },
@@ -1750,6 +1751,7 @@ export default function AdminDashboard() {
     comercios: 'Comércios', monetizacao: 'Monetização', anuncios: 'Anúncios',
     ia: 'IA — RAG Inteligente', relatorios: 'Relatórios', notificacoes: 'Notificações',
     configuracoes: 'Configurações', usuarios: 'Usuários do Bot', logs: 'Logs do Sistema',
+    informacoes: 'Informações da Cidade',
   }
 
   return (
@@ -1966,6 +1968,7 @@ export default function AdminDashboard() {
           {secao === 'relatorios' && <SecaoRelatorios />}
           {secao === 'logs' && <SecaoLogs />}
           {secao === 'configuracoes' && <SecaoConfiguracoes />}
+          {secao === 'informacoes' && <SecaoInformacoes />}
         </main>
       </div>
 
@@ -2013,6 +2016,201 @@ export default function AdminDashboard() {
       )}
 
       <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+    </div>
+  )
+}
+
+// ── SecaoInformacoes ──────────────────────────────────────────────
+interface InfoItem {
+  id: string; titulo: string; conteudo: string; categoria: string
+  icone: string | null; fonte: string | null; valido_ate: string | null
+  status: string; criado_em: string; whatsapp_colaborador: string | null
+}
+
+const CATEGORIA_LABEL: Record<string, string> = {
+  transporte: '🚌 Transporte', saude: '🏥 Saúde', documentos: '📄 Documentos',
+  eventos: '🎉 Eventos', servicos: '🔧 Serviços', outros: '📌 Outros',
+}
+
+function SecaoInformacoes() {
+  const [aba, setAba] = useState<'pendente' | 'aprovado' | 'rejeitado'>('pendente')
+  const [items, setItems] = useState<InfoItem[]>([])
+  const [loading, setLoading] = useState(true)
+  const [acao, setAcao] = useState<string | null>(null)
+  const [editando, setEditando] = useState<InfoItem | null>(null)
+  const [excluindo, setExcluindo] = useState<InfoItem | null>(null)
+
+  const carregar = useCallback(() => {
+    setLoading(true)
+    adminFetch<{ data: InfoItem[] }>(`/admin/informacoes?status=${aba}&limit=50`)
+      .then(r => setItems(r.data))
+      .catch(() => setItems([]))
+      .finally(() => setLoading(false))
+  }, [aba])
+
+  useEffect(() => { carregar() }, [carregar])
+
+  const aprovar = async (id: string) => {
+    setAcao(id)
+    await adminFetch(`/admin/informacoes/${id}`, { method: 'PUT', body: JSON.stringify({ status: 'aprovado' }) }).catch(() => {})
+    setAcao(null); carregar()
+  }
+
+  const rejeitar = async (id: string) => {
+    setAcao(id)
+    await adminFetch(`/admin/informacoes/${id}`, { method: 'PUT', body: JSON.stringify({ status: 'rejeitado' }) }).catch(() => {})
+    setAcao(null); carregar()
+  }
+
+  const salvarEdicao = async () => {
+    if (!editando) return
+    setAcao(editando.id)
+    await adminFetch(`/admin/informacoes/${editando.id}`, { method: 'PUT', body: JSON.stringify(editando) }).catch(() => {})
+    setAcao(null); setEditando(null); carregar()
+  }
+
+  const confirmarExclusao = async () => {
+    if (!excluindo) return
+    setAcao(excluindo.id)
+    await adminFetch(`/admin/informacoes/${excluindo.id}`, { method: 'DELETE' }).catch(() => {})
+    setAcao(null); setExcluindo(null); carregar()
+  }
+
+  const abas: { key: 'pendente' | 'aprovado' | 'rejeitado'; label: string; cor: string }[] = [
+    { key: 'pendente',  label: '⏳ Pendentes',  cor: '#D97706' },
+    { key: 'aprovado',  label: '✅ Aprovadas',   cor: '#16A34A' },
+    { key: 'rejeitado', label: '❌ Rejeitadas',  cor: '#DC2626' },
+  ]
+
+  return (
+    <div>
+      {/* Abas */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
+        {abas.map(a => (
+          <button key={a.key} onClick={() => setAba(a.key)} style={{
+            padding: '8px 20px', borderRadius: 999, border: 'none', cursor: 'pointer',
+            fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 13,
+            background: aba === a.key ? a.cor : '#F3F4F6',
+            color: aba === a.key ? 'white' : '#6B7280',
+            transition: 'all 0.15s',
+          }}>{a.label}</button>
+        ))}
+      </div>
+
+      {/* Lista */}
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: 40, color: '#9CA3AF' }}>Carregando...</div>
+      ) : items.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: 40, color: '#9CA3AF', fontFamily: 'Inter, sans-serif' }}>
+          Nenhuma informação {aba === 'pendente' ? 'pendente' : aba === 'aprovado' ? 'aprovada' : 'rejeitada'}.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {items.map(item => (
+            <div key={item.id} style={{ background: 'white', border: '1.5px solid #E5E7EB', borderRadius: 16, padding: '18px 20px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                    <span style={{ fontSize: 20 }}>{item.icone || '📌'}</span>
+                    <span style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 700, fontSize: 15, color: '#111827' }}>{item.titulo}</span>
+                    <span style={{ background: '#F3F4F6', color: '#6B7280', fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 999 }}>
+                      {CATEGORIA_LABEL[item.categoria] || item.categoria}
+                    </span>
+                  </div>
+                  <p style={{ fontFamily: 'Inter, sans-serif', fontSize: 13, color: '#4B5563', margin: '0 0 6px', lineHeight: 1.5 }}>{item.conteudo}</p>
+                  <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap' }}>
+                    {item.fonte && <span style={{ fontSize: 11, color: '#9CA3AF' }}>📎 {item.fonte}</span>}
+                    {item.valido_ate && <span style={{ fontSize: 11, color: '#9CA3AF' }}>📅 Válido até {new Date(item.valido_ate).toLocaleDateString('pt-BR')}</span>}
+                    {item.whatsapp_colaborador && <span style={{ fontSize: 11, color: '#9CA3AF' }}>📱 {item.whatsapp_colaborador}</span>}
+                    <span style={{ fontSize: 11, color: '#9CA3AF' }}>{formatarData(item.criado_em)}</span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                  {aba === 'pendente' && (
+                    <>
+                      <button onClick={() => aprovar(item.id)} disabled={acao === item.id} style={{ background: '#16A34A', color: 'white', border: 'none', borderRadius: 999, padding: '7px 16px', fontSize: 12, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: 'pointer' }}>
+                        {acao === item.id ? '...' : '✅ Aprovar'}
+                      </button>
+                      <button onClick={() => rejeitar(item.id)} disabled={acao === item.id} style={{ background: '#FEE2E2', color: '#DC2626', border: 'none', borderRadius: 999, padding: '7px 16px', fontSize: 12, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: 'pointer' }}>
+                        ❌ Rejeitar
+                      </button>
+                    </>
+                  )}
+                  {aba === 'rejeitado' && (
+                    <button onClick={() => aprovar(item.id)} disabled={acao === item.id} style={{ background: '#DCFCE7', color: '#16A34A', border: 'none', borderRadius: 999, padding: '7px 16px', fontSize: 12, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: 'pointer' }}>
+                      ↩️ Aprovar
+                    </button>
+                  )}
+                  <button onClick={() => setEditando({ ...item })} style={{ background: '#EFF6FF', color: '#1D4ED8', border: 'none', borderRadius: 999, padding: '7px 14px', fontSize: 12, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: 'pointer' }}>
+                    ✏️
+                  </button>
+                  <button onClick={() => setExcluindo(item)} style={{ background: '#FEE2E2', color: '#DC2626', border: 'none', borderRadius: 999, padding: '7px 14px', fontSize: 12, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: 'pointer' }}>
+                    🗑️
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Modal edição */}
+      {editando && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 20 }}
+          onClick={e => { if (e.target === e.currentTarget) setEditando(null) }}>
+          <div style={{ background: 'white', borderRadius: 20, padding: 28, maxWidth: 540, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)', maxHeight: '90vh', overflowY: 'auto' }}>
+            <h3 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.1rem', color: '#111827', marginBottom: 20 }}>Editar informação</h3>
+            {[
+              { label: 'Título', key: 'titulo', type: 'text' },
+              { label: 'Ícone (emoji)', key: 'icone', type: 'text' },
+              { label: 'Fonte', key: 'fonte', type: 'text' },
+              { label: 'Válido até', key: 'valido_ate', type: 'date' },
+            ].map(({ label, key, type }) => (
+              <div key={key} style={{ marginBottom: 14 }}>
+                <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#374151', fontFamily: 'Poppins, sans-serif', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>{label}</label>
+                <input type={type} value={(editando as any)[key] || ''} onChange={e => setEditando({ ...editando, [key]: e.target.value })}
+                  style={{ width: '100%', boxSizing: 'border-box', padding: '10px 14px', border: '1.5px solid #E5E7EB', borderRadius: 10, fontSize: 13, fontFamily: 'Inter, sans-serif', outline: 'none' }} />
+              </div>
+            ))}
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#374151', fontFamily: 'Poppins, sans-serif', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Conteúdo</label>
+              <textarea rows={4} value={editando.conteudo} onChange={e => setEditando({ ...editando, conteudo: e.target.value })}
+                style={{ width: '100%', boxSizing: 'border-box', padding: '10px 14px', border: '1.5px solid #E5E7EB', borderRadius: 10, fontSize: 13, fontFamily: 'Inter, sans-serif', outline: 'none', resize: 'vertical' }} />
+            </div>
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: '#374151', fontFamily: 'Poppins, sans-serif', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Categoria</label>
+              <select value={editando.categoria} onChange={e => setEditando({ ...editando, categoria: e.target.value })}
+                style={{ width: '100%', padding: '10px 14px', border: '1.5px solid #E5E7EB', borderRadius: 10, fontSize: 13, fontFamily: 'Inter, sans-serif', outline: 'none' }}>
+                {Object.entries(CATEGORIA_LABEL).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setEditando(null)} style={{ flex: 1, padding: 12, borderRadius: 999, border: '1.5px solid #E5E7EB', background: 'white', color: '#4B5563', fontSize: 14, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={salvarEdicao} disabled={!!acao} style={{ flex: 1, padding: 12, borderRadius: 999, border: 'none', background: '#16A34A', color: 'white', fontSize: 14, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: 'pointer' }}>
+                {acao ? '...' : 'Salvar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal exclusão */}
+      {excluindo && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: 20 }}
+          onClick={e => { if (e.target === e.currentTarget) setExcluindo(null) }}>
+          <div style={{ background: 'white', borderRadius: 20, padding: 28, maxWidth: 400, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)', textAlign: 'center' }}>
+            <div style={{ fontSize: 44, marginBottom: 12 }}>🗑️</div>
+            <h3 style={{ fontFamily: 'Poppins, sans-serif', fontWeight: 800, fontSize: '1.1rem', color: '#111827', marginBottom: 8 }}>Excluir informação?</h3>
+            <p style={{ color: '#4B5563', fontSize: 14, marginBottom: 24 }}><strong>{excluindo.titulo}</strong> será removida permanentemente.</p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={() => setExcluindo(null)} style={{ flex: 1, padding: 12, borderRadius: 999, border: '1.5px solid #E5E7EB', background: 'white', color: '#4B5563', fontSize: 14, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={confirmarExclusao} disabled={!!acao} style={{ flex: 1, padding: 12, borderRadius: 999, border: 'none', background: '#DC2626', color: 'white', fontSize: 14, fontWeight: 700, fontFamily: 'Poppins, sans-serif', cursor: 'pointer' }}>
+                {acao ? '...' : 'Excluir'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
